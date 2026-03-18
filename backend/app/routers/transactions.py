@@ -63,18 +63,26 @@ async def create_transaction(
             await db.flush()
 
     elif body.action == "remove":
-        result = await db.execute(
-            select(Asset).where(
-                Asset.user_id == user_id,
-                Asset.type == body.type,
-                Asset.currency == body.currency,
-                Asset.name == body.name,
+        if body.asset_id:
+            result = await db.execute(
+                select(Asset).where(Asset.id == body.asset_id, Asset.user_id == user_id)
             )
-        )
+        else:
+            result = await db.execute(
+                select(Asset).where(
+                    Asset.user_id == user_id,
+                    Asset.type == body.type,
+                    Asset.currency == body.currency,
+                    Asset.name == body.name,
+                )
+            )
         asset = result.scalar_one_or_none()
         if asset is None:
             raise HTTPException(status_code=404, detail="Asset not found for withdrawal")
-        asset.amount = asset.amount - Decimal(str(body.amount))
+        withdraw = Decimal(str(body.amount))
+        if withdraw > asset.amount:
+            raise HTTPException(status_code=400, detail=f"Insufficient balance ({asset.amount})")
+        asset.amount = asset.amount - withdraw
 
     txn = Transaction(
         user_id=user_id,
