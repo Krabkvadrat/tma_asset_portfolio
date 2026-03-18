@@ -74,7 +74,12 @@ cmd_down() {
 }
 
 cmd_logs() {
-    docker compose -f "$COMPOSE_FILE" logs -f "${2:-}"
+    shift
+    if [ $# -eq 0 ]; then
+        docker compose -f "$COMPOSE_FILE" logs -f
+    else
+        docker compose -f "$COMPOSE_FILE" logs -f "$@"
+    fi
 }
 
 cmd_status() {
