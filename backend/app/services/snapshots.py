@@ -44,14 +44,14 @@ async def compute_snapshot(
 
     rates = await _load_rates(session)
 
-    total = Decimal("0")
-    breakdown_map: dict[str, Decimal] = {}
+    total = 0.0
+    breakdown_map: dict[str, float] = {}
 
     for asset in assets:
         rate = _resolve_rate(rates, asset.currency, display_currency)
-        converted = asset.amount * Decimal(str(rate))
+        converted = float(asset.amount) * rate
         total += converted
-        breakdown_map[asset.type] = breakdown_map.get(asset.type, Decimal("0")) + converted
+        breakdown_map[asset.type] = breakdown_map.get(asset.type, 0.0) + converted
 
     breakdown = []
     for asset_type, value in breakdown_map.items():
