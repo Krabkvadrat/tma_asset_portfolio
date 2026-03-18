@@ -6,6 +6,7 @@ from app.auth import get_current_user
 from app.database import get_db
 from app.models import Asset, User
 from app.schemas import AssetCreate, AssetResponse, AssetUpdate
+from app.services.snapshots import take_snapshot
 
 router = APIRouter(prefix="/api/assets", tags=["assets"])
 
@@ -58,6 +59,13 @@ async def update_asset(
         setattr(asset, field, value)
     await db.commit()
     await db.refresh(asset)
+
+    result = await db.execute(select(User).where(User.user_id == user_id))
+    user = result.scalar_one_or_none()
+    if user:
+        await take_snapshot(db, user_id, user.display_currency or "EUR")
+        await db.commit()
+
     return asset
 
 
@@ -73,4 +81,11 @@ async def delete_asset(
         raise HTTPException(status_code=404, detail="Asset not found")
     await db.delete(asset)
     await db.commit()
+
+    result = await db.execute(select(User).where(User.user_id == user_id))
+    user = result.scalar_one_or_none()
+    if user:
+        await take_snapshot(db, user_id, user.display_currency or "EUR")
+        await db.commit()
+
     return {"ok": True}

@@ -106,12 +106,14 @@ export const useStore = create((set, get) => ({
   updateAsset: async (id, data) => {
     const updated = await api.updateAsset(id, data);
     set((s) => ({ assets: s.assets.map((a) => (a.id === id ? updated : a)) }));
+    get().loadPortfolio();
     return updated;
   },
 
   deleteAsset: async (id) => {
     await api.deleteAsset(id);
     set((s) => ({ assets: s.assets.filter((a) => a.id !== id) }));
+    get().loadPortfolio();
   },
 
   createTransaction: async (data) => {
