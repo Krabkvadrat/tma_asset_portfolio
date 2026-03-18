@@ -25,20 +25,20 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  getPortfolio: () => request("/portfolio"),
+  getPortfolio: () => request("/portfolio/"),
   getPortfolioHistory: (period) => request(`/portfolio/history?period=${period}`),
 
-  getAssets: () => request("/assets"),
-  createAsset: (data) => request("/assets", { method: "POST", body: JSON.stringify(data) }),
+  getAssets: () => request("/assets/"),
+  createAsset: (data) => request("/assets/", { method: "POST", body: JSON.stringify(data) }),
   updateAsset: (id, data) => request(`/assets/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   deleteAsset: (id) => request(`/assets/${id}`, { method: "DELETE" }),
 
-  getTransactions: () => request("/transactions"),
-  createTransaction: (data) => request("/transactions", { method: "POST", body: JSON.stringify(data) }),
+  getTransactions: () => request("/transactions/"),
+  createTransaction: (data) => request("/transactions/", { method: "POST", body: JSON.stringify(data) }),
 
-  getSettings: () => request("/settings"),
-  updateSetting: (key, value) => request("/settings", { method: "PUT", body: JSON.stringify({ key, value }) }),
+  getSettings: () => request("/settings/"),
+  updateSetting: (key, value) => request("/settings/", { method: "PUT", body: JSON.stringify({ key, value }) }),
 
-  getRates: () => request("/rates"),
+  getRates: () => request("/rates/"),
   refreshRates: () => request("/rates/refresh", { method: "POST" }),
 };
