@@ -5,7 +5,7 @@ export const formLabelSt = {
 export const inputSt = {
   width: "100%", padding: "12px 14px", background: "#1C1C1E",
   border: "1px solid #3A3A3C", borderRadius: 12, color: "#F5F5F7",
-  fontSize: 15, outline: "none", boxSizing: "border-box",
+  fontSize: 15, outline: "none",
 };
 export const submitBtnSt = {
   padding: "14px", border: "none", borderRadius: 12, color: "#fff",
