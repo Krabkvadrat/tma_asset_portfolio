@@ -196,7 +196,7 @@ export default function Add() {
         onChange={(e) => { setForm((f) => ({ ...f, amount: e.target.value })); setError(null); }} />
 
       <label style={{ ...formLabelSt, marginTop: 14 }}>Date</label>
-      <input style={inputSt} type="date" value={form.date}
+      <input style={{ ...inputSt, fontSize: 14 }} type="date" value={form.date}
         onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} />
 
       <label style={{ ...formLabelSt, marginTop: 14 }}>Note</label>

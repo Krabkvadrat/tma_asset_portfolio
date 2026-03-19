@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from decimal import Decimal
@@ -7,7 +7,7 @@ from datetime import datetime
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import Asset, Transaction, User
+from app.models import Asset, PortfolioSnapshot, Transaction, User
 from app.schemas import AssetCreate, AssetResponse, AssetUpdate
 from app.services.snapshots import take_snapshot
 
@@ -105,10 +105,19 @@ async def delete_asset(
     await db.delete(asset)
     await db.commit()
 
-    result = await db.execute(select(User).where(User.user_id == user_id))
-    user = result.scalar_one_or_none()
-    if user:
-        await take_snapshot(db, user_id, user.display_currency or "EUR")
+    remaining = await db.execute(
+        select(func.count()).select_from(Asset).where(Asset.user_id == user_id)
+    )
+    asset_count = remaining.scalar()
+
+    if asset_count == 0:
+        await db.execute(delete(PortfolioSnapshot).where(PortfolioSnapshot.user_id == user_id))
         await db.commit()
+    else:
+        result = await db.execute(select(User).where(User.user_id == user_id))
+        user = result.scalar_one_or_none()
+        if user:
+            await take_snapshot(db, user_id, user.display_currency or "EUR")
+            await db.commit()
 
     return {"ok": True}
