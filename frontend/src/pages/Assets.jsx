@@ -176,17 +176,17 @@ export default function Assets() {
               padding: "14px 16px", background: "transparent", border: "none",
               borderBottom: isOpen ? "1px solid #3A3A3C" : "none", cursor: "pointer", color: "#F5F5F7",
             }} onClick={() => setExpandedAsset(isOpen ? null : type.key)}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, background: type.color + "22", color: type.color, flexShrink: 0 }}>{type.icon}</div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, textAlign: "left", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{type.label}</div>
-                  <div style={{ fontSize: 11, color: "#636366" }}>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, textAlign: "left" }}>{type.label}</div>
+                  <div style={{ fontSize: 11, color: "#636366", textAlign: "left" }}>
                     {items.length} item{items.length !== 1 ? "s" : ""}
                     {showOriginal && isMultiCurrency && ` · ${groupKeys.length} currencies`}
                   </div>
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{sym}{Math.round(subtotalConverted).toLocaleString()}</div>
                   {showOriginal && isMultiCurrency && (

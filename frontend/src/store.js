@@ -155,7 +155,10 @@ export const useStore = create((set, get) => ({
   resetAllData: async () => {
     await api.resetData();
     set({ assets: [], transactions: [], chartData: [], portfolio: null });
-    get().loadPortfolio();
+    await Promise.all([
+      get().loadPortfolio(),
+      get().loadChartData(),
+    ]);
   },
 
   initApp: async () => {
