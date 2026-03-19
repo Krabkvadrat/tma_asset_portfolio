@@ -8,7 +8,7 @@ function todayStr() {
 export const useStore = create((set, get) => ({
   // Settings
   enabledTypes: ["deposits", "bank_accounts", "cash", "crypto", "stocks_bonds"],
-  currencies: ["EUR", "USD"],
+  currencies: ["EUR", "USD", "RSD"],
   banks: { deposits: ["Tinkoff", "Sber"], bank_accounts: ["Tinkoff", "Sber", "Alpha"] },
   displayCurrency: "EUR",
 
@@ -107,6 +107,7 @@ export const useStore = create((set, get) => ({
     const updated = await api.updateAsset(id, data);
     set((s) => ({ assets: s.assets.map((a) => (a.id === id ? updated : a)) }));
     get().loadPortfolio();
+    get().loadTransactions();
     return updated;
   },
 

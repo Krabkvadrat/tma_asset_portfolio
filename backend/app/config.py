@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     FIAT_RATE_API_URL: str = "https://api.exchangerate-api.com/v4/latest"
     COINGECKO_API_URL: str = "https://api.coingecko.com/api/v3"
 
-    FIAT_CURRENCIES: list[str] = ["EUR", "USD", "RUB"]
+    FIAT_CURRENCIES: list[str] = ["EUR", "USD", "RUB", "RSD"]
     CRYPTO_IDS: dict[str, str] = {"BTC": "bitcoin", "ETH": "ethereum"}
 
     FIAT_CACHE_TTL: int = 3600
