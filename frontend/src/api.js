@@ -41,4 +41,5 @@ export const api = {
 
   getRates: () => request("/rates/"),
   refreshRates: () => request("/rates/refresh", { method: "POST" }),
+  resetData: () => request("/settings/reset-data", { method: "DELETE" }),
 };

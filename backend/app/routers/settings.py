@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import User, UserSetting
+from app.models import Asset, PortfolioSnapshot, Transaction, User, UserSetting
 from app.routers.assets import ensure_user
 from app.schemas import UserSettingResponse, UserSettingUpdate
 
@@ -80,3 +80,15 @@ async def update_setting(
     await db.commit()
     await db.refresh(setting)
     return UserSettingResponse(id=setting.id, user_id=setting.user_id, key=setting.key, value=setting.value)
+
+
+@router.delete("/reset-data")
+async def reset_all_data(
+    user_id: int = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await db.execute(delete(Transaction).where(Transaction.user_id == user_id))
+    await db.execute(delete(Asset).where(Asset.user_id == user_id))
+    await db.execute(delete(PortfolioSnapshot).where(PortfolioSnapshot.user_id == user_id))
+    await db.commit()
+    return {"ok": True}

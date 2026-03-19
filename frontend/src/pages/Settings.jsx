@@ -6,11 +6,12 @@ import { S, formLabelSt, inputSt, submitBtnSt } from "../styles";
 export default function Settings() {
   const {
     enabledTypes, currencies, banks,
-    setEnabledTypes, setCurrencies, setBanks,
+    setEnabledTypes, setCurrencies, setBanks, resetAllData,
   } = useStore();
 
   const [newCurrencyInput, setNewCurrencyInput] = useState("");
   const [newBankInput, setNewBankInput] = useState({});
+  const [confirmReset, setConfirmReset] = useState(false);
 
   return (
     <div>
@@ -87,6 +88,41 @@ export default function Settings() {
             </div>
           );
         })}
+      </div>
+
+      <div style={{ ...S.secTitle, marginTop: 32 }}>Danger Zone</div>
+      <div style={{ ...S.settingsCard, borderColor: "#EF444444" }}>
+        <div style={{ fontSize: 13, color: "#A1A1A6", marginBottom: 12 }}>
+          Delete all assets, transactions, and portfolio history. Settings will be kept.
+        </div>
+        {!confirmReset ? (
+          <button onClick={() => setConfirmReset(true)} style={{
+            ...submitBtnSt, background: "#EF4444", width: "100%",
+          }}>
+            Reset All Data
+          </button>
+        ) : (
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#EF4444", marginBottom: 12, textAlign: "center" }}>
+              Are you sure? This cannot be undone.
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setConfirmReset(false)} style={{
+                ...submitBtnSt, background: "#3A3A3C", flex: 1,
+              }}>
+                Cancel
+              </button>
+              <button onClick={async () => {
+                await resetAllData();
+                setConfirmReset(false);
+              }} style={{
+                ...submitBtnSt, background: "#EF4444", flex: 1,
+              }}>
+                Yes, Delete Everything
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

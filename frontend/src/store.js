@@ -152,6 +152,12 @@ export const useStore = create((set, get) => ({
     get().loadChartData(period);
   },
 
+  resetAllData: async () => {
+    await api.resetData();
+    set({ assets: [], transactions: [], chartData: [], portfolio: null });
+    get().loadPortfolio();
+  },
+
   initApp: async () => {
     set({ loading: true });
     try {
