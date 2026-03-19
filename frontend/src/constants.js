@@ -1,4 +1,4 @@
-export const CURRENCY_SYMBOLS = { EUR: "€", USD: "$", RUB: "₽" };
+export const CURRENCY_SYMBOLS = { EUR: "€", USD: "$", RUB: "₽", RSD: "дин." };
 export const CRYPTO_CURRENCIES = ["BTC", "ETH"];
 
 export const ALL_ASSET_TYPES = [
