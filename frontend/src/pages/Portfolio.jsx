@@ -69,8 +69,29 @@ export default function Portfolio() {
       )}
 
       <div style={{ textAlign: "center", padding: "20px 0 8px" }}>
-        <div style={{ fontSize: 11, color: "#636366", textTransform: "uppercase", letterSpacing: 1.4, fontWeight: 600, marginBottom: 6 }}>
-          Total Portfolio Value
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 6 }}>
+          <div style={{ fontSize: 11, color: "#636366", textTransform: "uppercase", letterSpacing: 1.4, fontWeight: 600 }}>
+            Total Portfolio Value
+          </div>
+          <button onClick={() => useStore.setState({ privateMode: !hide })} style={{
+            background: "none", border: "none", cursor: "pointer", padding: 2,
+            color: hide ? "#2A9EF4" : "#636366", display: "flex", alignItems: "center",
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {hide ? (
+                <>
+                  <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
+                  <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </>
+              ) : (
+                <>
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </>
+              )}
+            </svg>
+          </button>
         </div>
         <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: -1.5, lineHeight: 1.1 }}>
           {hide ? `${sym}${MASK}` : `${sym}${Math.round(totalValue).toLocaleString()}`}

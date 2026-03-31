@@ -126,7 +126,11 @@ async def ensure_today_snapshot(
 async def get_history(
     session: AsyncSession, user_id: int, display_currency: str, days: int
 ) -> list[dict]:
-    """Return snapshots for the last N days."""
+    """Return snapshots for the last N days.
+
+    If no snapshots exist in the requested currency, falls back to
+    snapshots in any other currency and converts them using current rates.
+    """
     start_date = datetime.utcnow().date() - timedelta(days=days - 1)
     result = await session.execute(
         select(PortfolioSnapshot)
@@ -138,7 +142,30 @@ async def get_history(
         .order_by(PortfolioSnapshot.date.asc())
     )
     snapshots = result.scalars().all()
+
+    if snapshots:
+        return [
+            {"date": s.date.isoformat(), "value": float(s.total_value)}
+            for s in snapshots
+        ]
+
+    result = await session.execute(
+        select(PortfolioSnapshot)
+        .where(and_(
+            PortfolioSnapshot.user_id == user_id,
+            PortfolioSnapshot.date >= start_date,
+        ))
+        .order_by(PortfolioSnapshot.date.asc())
+    )
+    fallback = result.scalars().all()
+    if not fallback:
+        return []
+
+    rates = await _load_rates(session)
+    source_currency = fallback[0].display_currency
+    rate = _resolve_rate(rates, source_currency, display_currency)
+
     return [
-        {"date": s.date.isoformat(), "value": float(s.total_value)}
-        for s in snapshots
+        {"date": s.date.isoformat(), "value": float(s.total_value) * rate}
+        for s in fallback
     ]
