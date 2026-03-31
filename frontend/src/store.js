@@ -8,7 +8,7 @@ function todayStr() {
 export const useStore = create((set, get) => ({
   // Settings
   enabledTypes: ["deposits", "bank_accounts", "cash", "crypto", "stocks_bonds"],
-  currencies: ["EUR", "USD", "RSD"],
+  currencies: ["EUR", "USD", "RUB", "RSD"],
   banks: { deposits: ["Tinkoff", "Sber"], bank_accounts: ["Tinkoff", "Sber", "Alpha"] },
   displayCurrency: "EUR",
 
@@ -22,6 +22,7 @@ export const useStore = create((set, get) => ({
   // UI
   loading: false,
   period: "30d",
+  privateMode: true,
 
   loadSettings: async () => {
     try {

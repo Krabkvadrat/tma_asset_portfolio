@@ -4,11 +4,14 @@ import { CURRENCY_SYMBOLS, CRYPTO_CURRENCIES, ALL_ASSET_TYPES } from "../constan
 import { formLabelSt, inputSt, submitBtnSt } from "../styles";
 import Modal from "../components/Modal";
 
+const MASK = "•••••";
+
 export default function Assets() {
   const {
     displayCurrency, enabledTypes, currencies, banks, assets,
-    toDisplay, updateAsset, deleteAsset,
+    toDisplay, updateAsset, deleteAsset, privateMode,
   } = useStore();
+  const hide = privateMode;
 
   const [expandedAsset, setExpandedAsset] = useState(null);
   const [editModal, setEditModal] = useState(null);
@@ -103,7 +106,7 @@ export default function Assets() {
 
       <div style={{ textAlign: "center", padding: "8px 0 16px" }}>
         <div style={{ fontSize: 11, color: "#636366", textTransform: "uppercase", letterSpacing: 1.2, fontWeight: 600, marginBottom: 4 }}>Total Assets</div>
-        <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: -1.2 }}>{sym}{Math.round(totalValue).toLocaleString()}</div>
+        <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: -1.2 }}>{hide ? `${sym}${MASK}` : `${sym}${Math.round(totalValue).toLocaleString()}`}</div>
 
         {showOriginal && (() => {
           const allItems = enabledAssetTypes.flatMap((t) => assetsByType[t.key] || []);
@@ -126,10 +129,10 @@ export default function Assets() {
                     padding: "8px 12px", textAlign: "center", minWidth: 80,
                   }}>
                     <div style={{ fontSize: 14, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
-                      {CRYPTO_CURRENCIES.includes(cur) ? `${byC[cur].original.toFixed(4)} ${cur}` : `${cSym}${byC[cur].original.toLocaleString()}`}
+                      {hide ? MASK : CRYPTO_CURRENCIES.includes(cur) ? `${byC[cur].original.toFixed(4)} ${cur}` : `${cSym}${byC[cur].original.toLocaleString()}`}
                     </div>
                     <div style={{ fontSize: 10, color: "#636366", marginTop: 2 }}>
-                      ≈ {sym}{Math.round(byC[cur].converted).toLocaleString()} · {pct}%
+                      {hide ? "" : `≈ ${sym}${Math.round(byC[cur].converted).toLocaleString()} · ${pct}%`}
                     </div>
                   </div>
                 );
@@ -188,8 +191,8 @@ export default function Assets() {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{sym}{Math.round(subtotalConverted).toLocaleString()}</div>
-                  {showOriginal && isMultiCurrency && (
+                  <div style={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{hide ? `${sym}${MASK}` : `${sym}${Math.round(subtotalConverted).toLocaleString()}`}</div>
+                  {!hide && showOriginal && isMultiCurrency && (
                     <div style={{ fontSize: 10, color: "#636366", marginTop: 1 }}>
                       {groupKeys.map((cur) => {
                         const grpTotal = currencyGroups[cur].reduce((s, a) => s + a.amount, 0);
@@ -221,9 +224,9 @@ export default function Assets() {
                         </div>
                         <div style={{ textAlign: "right" }}>
                           <span style={{ fontSize: 12, fontWeight: 700, color: "#A1A1A6" }}>
-                            {CRYPTO_CURRENCIES.includes(cur) ? `${grpTotal} ${cur}` : `${cSym}${grpTotal.toLocaleString()}`}
+                            {hide ? MASK : CRYPTO_CURRENCIES.includes(cur) ? `${grpTotal} ${cur}` : `${cSym}${grpTotal.toLocaleString()}`}
                           </span>
-                          <span style={{ fontSize: 10, color: "#636366", marginLeft: 6 }}>≈ {sym}{Math.round(grpConverted).toLocaleString()}</span>
+                          {!hide && <span style={{ fontSize: 10, color: "#636366", marginLeft: 6 }}>≈ {sym}{Math.round(grpConverted).toLocaleString()}</span>}
                         </div>
                       </div>
                       {grpItems.map((a, ai) => {
@@ -243,9 +246,9 @@ export default function Assets() {
                             <div style={{ textAlign: "right", display: "flex", alignItems: "center", gap: 8 }}>
                               <div>
                                 <div style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
-                                  {CRYPTO_CURRENCIES.includes(a.currency) ? `${a.amount} ${a.currency}` : `${cSym}${a.amount.toLocaleString()}`}
+                                  {hide ? MASK : CRYPTO_CURRENCIES.includes(a.currency) ? `${a.amount} ${a.currency}` : `${cSym}${a.amount.toLocaleString()}`}
                                 </div>
-                                <div style={{ fontSize: 10, color: "#636366" }}>≈ {sym}{Math.round(toDisplay(a.amount, a.currency)).toLocaleString()}</div>
+                                {!hide && <div style={{ fontSize: 10, color: "#636366" }}>≈ {sym}{Math.round(toDisplay(a.amount, a.currency)).toLocaleString()}</div>}
                               </div>
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4A4A4E" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
                             </div>
@@ -279,7 +282,9 @@ export default function Assets() {
                       </div>
                       <div style={{ textAlign: "right", display: "flex", alignItems: "center", gap: 10 }}>
                         <div>
-                          {showOriginal ? (
+                          {hide ? (
+                            <div style={{ fontSize: 14, fontWeight: 700 }}>{MASK}</div>
+                          ) : showOriginal ? (
                             <>
                               <div style={{ fontSize: 14, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
                                 {CRYPTO_CURRENCIES.includes(a.currency) ? `${a.amount} ${a.currency}` : `${cSym}${a.amount.toLocaleString()}`}
@@ -305,6 +310,29 @@ export default function Assets() {
           </div>
         );
       })}
+
+      <button onClick={() => useStore.setState({ privateMode: !privateMode })} style={{
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+        width: "100%", padding: "12px 0", marginTop: 16,
+        background: "#2C2C2E", border: "1px solid #3A3A3C", borderRadius: 12,
+        color: hide ? "#2A9EF4" : "#636366", fontSize: 13, fontWeight: 600, cursor: "pointer",
+      }}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          {hide ? (
+            <>
+              <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
+              <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
+              <line x1="1" y1="1" x2="23" y2="23" />
+            </>
+          ) : (
+            <>
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </>
+          )}
+        </svg>
+        {hide ? "Show Values" : "Hide Values"}
+      </button>
     </div>
   );
 }

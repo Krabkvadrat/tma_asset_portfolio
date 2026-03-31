@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     COINGECKO_API_URL: str = "https://api.coingecko.com/api/v3"
 
     FIAT_CURRENCIES: list[str] = ["EUR", "USD", "RUB", "RSD"]
-    CRYPTO_IDS: dict[str, str] = {"BTC": "bitcoin", "ETH": "ethereum"}
+    CRYPTO_IDS: dict[str, str] = {"BTC": "bitcoin", "ETH": "ethereum", "USDT": "tether"}
 
     FIAT_CACHE_TTL: int = 3600
     CRYPTO_CACHE_TTL: int = 300

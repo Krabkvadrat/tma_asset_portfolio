@@ -1,5 +1,5 @@
 export const CURRENCY_SYMBOLS = { EUR: "€", USD: "$", RUB: "₽", RSD: "дин." };
-export const CRYPTO_CURRENCIES = ["BTC", "ETH"];
+export const CRYPTO_CURRENCIES = ["BTC", "ETH", "USDT"];
 
 export const ALL_ASSET_TYPES = [
   { key: "deposits", label: "Deposits", icon: "🏦", color: "#3B82F6", hasBanks: true },
