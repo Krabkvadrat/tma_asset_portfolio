@@ -11,11 +11,14 @@ function todayStr() {
   return new Date().toISOString().split("T")[0];
 }
 
+const MASK = "•••••";
+
 export default function Portfolio() {
   const {
     displayCurrency, enabledTypes, assets, chartData, period, setPeriod,
-    portfolio, toDisplay,
+    portfolio, toDisplay, privateMode,
   } = useStore();
+  const hide = privateMode;
 
   const [showDateRange, setShowDateRange] = useState(false);
   const [dateRangeStart, setDateRangeStart] = useState(todayStr());
@@ -70,19 +73,19 @@ export default function Portfolio() {
           Total Portfolio Value
         </div>
         <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: -1.5, lineHeight: 1.1 }}>
-          {sym}{Math.round(totalValue).toLocaleString()}
+          {hide ? `${sym}${MASK}` : `${sym}${Math.round(totalValue).toLocaleString()}`}
         </div>
         {hasHistory ? (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 8, fontSize: 14 }}>
             <span style={{ color: isUp ? "#10B981" : "#EF4444", fontWeight: 600 }}>
-              {isUp ? "▲" : "▼"} {sym}{Math.abs(Math.round(absChange)).toLocaleString()}
+              {isUp ? "▲" : "▼"} {hide ? `${sym}${MASK}` : `${sym}${Math.abs(Math.round(absChange)).toLocaleString()}`}
             </span>
             <span style={{
               background: isUp ? "#10B98122" : "#EF444422",
               color: isUp ? "#10B981" : "#EF4444",
               padding: "2px 8px", borderRadius: 6, fontSize: 12, fontWeight: 700,
             }}>
-              {isUp ? "+" : ""}{pctChange.toFixed(2)}%
+              {hide ? MASK : `${isUp ? "+" : ""}${pctChange.toFixed(2)}%`}
             </span>
             <span style={{ color: "#636366", fontSize: 12 }}>
               {period === "Custom" && customRange ? `${customRange.start} → ${customRange.end}` : period}
@@ -110,7 +113,7 @@ export default function Portfolio() {
       </div>
 
       <div style={{ background: "#2C2C2E", borderRadius: 16, padding: "16px 12px 8px", marginBottom: 20, border: "1px solid #3A3A3C" }}>
-        {chartData.length >= 2 ? (
+        {chartData.length >= 2 && !hide ? (
           <ChartSVG data={chartData} currencySymbol={sym} />
         ) : (
           <div style={{ height: 120, display: "flex", alignItems: "center", justifyContent: "center", color: "#636366", fontSize: 13 }}>
@@ -130,7 +133,7 @@ export default function Portfolio() {
               <div style={{ width: 8, height: 8, borderRadius: 4, background: a.color, flexShrink: 0 }} />
               <span style={{ flex: 1, color: "#A1A1A6" }}>{a.icon} {a.label}</span>
               <span style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
-                {sym}{Math.round(a.value).toLocaleString()}
+                {hide ? MASK : `${sym}${Math.round(a.value).toLocaleString()}`}
               </span>
             </div>
           ))}

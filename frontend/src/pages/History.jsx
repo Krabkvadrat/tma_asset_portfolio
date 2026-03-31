@@ -2,8 +2,11 @@ import { useStore } from "../store";
 import { CURRENCY_SYMBOLS, CRYPTO_CURRENCIES, ALL_ASSET_TYPES } from "../constants";
 import { S } from "../styles";
 
+const MASK = "•••••";
+
 export default function History() {
-  const { transactions } = useStore();
+  const { transactions, privateMode } = useStore();
+  const hide = privateMode;
 
   return (
     <div>
@@ -38,10 +41,11 @@ export default function History() {
               fontSize: 14, fontWeight: 700, fontVariantNumeric: "tabular-nums",
               flexShrink: 0, color: tx.action === "add" ? "#10B981" : "#EF4444",
             }}>
-              {tx.action === "add" ? "+" : "−"}
-              {CRYPTO_CURRENCIES.includes(tx.currency)
-                ? `${tx.amount} ${tx.currency}`
-                : `${CURRENCY_SYMBOLS[tx.currency] || tx.currency}${tx.amount.toLocaleString()}`}
+              {hide ? MASK : `${tx.action === "add" ? "+" : "−"}${
+                CRYPTO_CURRENCIES.includes(tx.currency)
+                  ? `${tx.amount} ${tx.currency}`
+                  : `${CURRENCY_SYMBOLS[tx.currency] || tx.currency}${tx.amount.toLocaleString()}`
+              }`}
             </div>
           </div>
         );
