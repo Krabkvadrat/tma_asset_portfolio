@@ -1,4 +1,4 @@
-export default function DonutChart({ allocations }) {
+export default function DonutChart({ allocations, hide }) {
   const total = allocations.reduce((s, a) => s + a.value, 0);
   if (total === 0) return null;
 
@@ -20,7 +20,7 @@ export default function DonutChart({ allocations }) {
         );
       })}
       <text x={cx} y={cy - 4} textAnchor="middle" style={{ fontSize: 11, fontWeight: 700, fill: "#F5F5F7" }}>
-        {total > 1000 ? `${(total / 1000).toFixed(1)}k` : total}
+        {hide ? "•••" : total > 1000 ? `${(total / 1000).toFixed(1)}k` : total}
       </text>
       <text x={cx} y={cy + 10} textAnchor="middle" style={{ fontSize: 8, fill: "#636366", letterSpacing: 0.5 }}>
         TOTAL
