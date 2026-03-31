@@ -105,7 +105,28 @@ export default function Assets() {
       )}
 
       <div style={{ textAlign: "center", padding: "8px 0 16px" }}>
-        <div style={{ fontSize: 11, color: "#636366", textTransform: "uppercase", letterSpacing: 1.2, fontWeight: 600, marginBottom: 4 }}>Total Assets</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 4 }}>
+          <div style={{ fontSize: 11, color: "#636366", textTransform: "uppercase", letterSpacing: 1.2, fontWeight: 600 }}>Total Assets</div>
+          <button onClick={() => useStore.setState({ privateMode: !privateMode })} style={{
+            background: "none", border: "none", cursor: "pointer", padding: 2,
+            color: hide ? "#2A9EF4" : "#636366", display: "flex", alignItems: "center",
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {hide ? (
+                <>
+                  <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
+                  <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </>
+              ) : (
+                <>
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </>
+              )}
+            </svg>
+          </button>
+        </div>
         <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: -1.2 }}>{hide ? `${sym}${MASK}` : `${sym}${Math.round(totalValue).toLocaleString()}`}</div>
 
         {showOriginal && (() => {
@@ -311,28 +332,6 @@ export default function Assets() {
         );
       })}
 
-      <button onClick={() => useStore.setState({ privateMode: !privateMode })} style={{
-        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-        width: "100%", padding: "12px 0", marginTop: 16,
-        background: "#2C2C2E", border: "1px solid #3A3A3C", borderRadius: 12,
-        color: hide ? "#2A9EF4" : "#636366", fontSize: 13, fontWeight: 600, cursor: "pointer",
-      }}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          {hide ? (
-            <>
-              <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
-              <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
-              <line x1="1" y1="1" x2="23" y2="23" />
-            </>
-          ) : (
-            <>
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </>
-          )}
-        </svg>
-        {hide ? "Show Values" : "Hide Values"}
-      </button>
     </div>
   );
 }
