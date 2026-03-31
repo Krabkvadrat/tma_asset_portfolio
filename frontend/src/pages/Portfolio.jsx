@@ -126,7 +126,7 @@ export default function Portfolio() {
 
       <div style={S.secTitle}>Allocation</div>
       <div style={{ display: "flex", alignItems: "center", gap: 16, background: "#2C2C2E", borderRadius: 16, padding: 16, border: "1px solid #3A3A3C" }}>
-        <DonutChart allocations={allocations} />
+        <DonutChart allocations={allocations} hide={hide} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
           {allocations.map((a, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>

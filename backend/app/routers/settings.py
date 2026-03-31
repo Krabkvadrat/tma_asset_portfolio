@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 DEFAULT_SETTINGS: dict[str, object] = {
     "enabled_types": ["deposits", "bank_accounts", "cash", "crypto", "stocks_bonds"],
-    "currencies": ["EUR", "USD"],
+    "currencies": ["EUR", "USD", "RUB", "RSD"],
     "banks": {
         "deposits": ["Tinkoff", "Sber"],
         "bank_accounts": ["Tinkoff", "Sber", "Alpha"],
