@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import and_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Asset, ExchangeRate, PortfolioSnapshot, User
@@ -102,7 +103,23 @@ async def take_snapshot(
         )
         session.add(snapshot)
 
-    await session.flush()
+    try:
+        await session.flush()
+    except IntegrityError:
+        await session.rollback()
+        result = await session.execute(
+            select(PortfolioSnapshot).where(
+                PortfolioSnapshot.user_id == user_id,
+                PortfolioSnapshot.date == snapshot_date,
+                PortfolioSnapshot.display_currency == display_currency,
+            )
+        )
+        snapshot = result.scalar_one_or_none()
+        if snapshot is not None:
+            snapshot.total_value = Decimal(str(total_value))
+            snapshot.breakdown = breakdown
+            await session.flush()
+
     return snapshot
 
 
