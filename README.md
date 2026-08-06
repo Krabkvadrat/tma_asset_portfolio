@@ -57,6 +57,12 @@ docker compose up --build -d
 
 The app will be available at http://localhost (port 80) via Nginx.
 
+### Raspberry Pi (auto-deploy)
+
+Pushing to `main` auto-deploys to the Pi via GitHub Actions, with a health check
+and automatic rollback. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for how it
+works and the one-time setup.
+
 ## Project Structure
 
 ```

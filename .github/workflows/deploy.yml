@@ -1,0 +1,54 @@
+name: Deploy to Raspberry Pi
+
+# Auto-deploy on merge/push to main. Can also be triggered manually
+# from the Actions tab (workflow_dispatch) to re-deploy without a new commit.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never run two deploys at once; let an in-progress deploy finish.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_HOST: ${{ secrets.DEPLOY_HOST }}
+          SSH_USER: ${{ secrets.DEPLOY_USER }}
+          SSH_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          PORT="${SSH_PORT:-22}"
+          ssh-keyscan -p "$PORT" "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          # On the Pi: remember the current commit, update to latest main, then
+          # build + health-check via scripts/deploy.sh. If it reports failure (it
+          # rolls the built images back to the previous ones), also restore the
+          # git checkout to the previous commit so source and images stay in sync.
+          #
+          # $DEPLOY_PATH/$PORT/etc. are expanded here by the runner; \$ sequences
+          # are escaped so they evaluate on the Pi.
+          # Keepalives stop a long build (a cold ARM build of the backend and the
+          # Vite frontend takes many minutes on a Pi) from dropping the SSH
+          # session: probe every 30s, tolerate up to 240 missed (~2h).
+          ssh -i ~/.ssh/deploy_key \
+            -o ServerAliveInterval=30 -o ServerAliveCountMax=240 \
+            -p "$PORT" "$SSH_USER@$SSH_HOST" \
+            "cd '$DEPLOY_PATH' \
+             && PREV_SHA=\$(git rev-parse HEAD) \
+             && git fetch --prune origin \
+             && git reset --hard origin/main \
+             && { bash scripts/deploy.sh \
+                  || { echo '[deploy] Restoring source to '\$PREV_SHA; git reset --hard \$PREV_SHA; exit 1; }; }"
