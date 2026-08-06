@@ -1,6 +1,9 @@
 services:
   backend:
     build: ./backend
+    # Explicit tag (instead of the project-name-derived default) so
+    # scripts/deploy.sh can keep a :prev image and roll back deterministically.
+    image: tma-portfolio-backend:prod
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-portfolio}
       - DATABASE_URL_SYNC=postgresql+psycopg2://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-portfolio}
@@ -18,6 +21,7 @@ services:
 
   frontend:
     build: ./frontend
+    image: tma-portfolio-frontend:prod
     restart: unless-stopped
 
   db:
@@ -46,9 +50,25 @@ services:
 
   tunnel:
     image: cloudflare/cloudflared:latest
-    command: tunnel --no-autoupdate --url http://nginx:80
+    # --metrics exposes /quicktunnel, which reports the randomly assigned
+    # hostname this run got. The bot service reads it from there.
+    command: tunnel --no-autoupdate --metrics 0.0.0.0:2000 --url http://nginx:80
     depends_on:
       - nginx
+    restart: unless-stopped
+
+  # Listens for /start and re-points the Telegram menu button at the tunnel's
+  # current hostname, which changes on every restart.
+  bot:
+    image: python:3.12-alpine
+    entrypoint: ["python", "/bot.py"]
+    volumes:
+      - ./scripts/bot.py:/bot.py:ro
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - ALLOWED_USER_IDS=${ALLOWED_USER_IDS:-[]}
+    depends_on:
+      - tunnel
     restart: unless-stopped
 
 volumes:
