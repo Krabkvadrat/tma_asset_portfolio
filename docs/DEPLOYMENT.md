@@ -31,8 +31,9 @@ You can also re-deploy without a new commit:
 probes run from inside the compose network via the nginx container's busybox
 `wget`. The deploy is healthy only when **all** hold within **120s**:
 
-- neither `backend` nor `frontend` is crash-looping (`RestartCount == 0` on the
-  freshly created containers),
+- no service is crash-looping (`RestartCount == 0` on the freshly created
+  containers) — including `tunnel` and `bot`, which the internal probes below
+  cannot see but without which the app is unreachable from Telegram,
 - `http://localhost/` answers inside the nginx container — nginx → frontend, so
   the SPA is really being served, and
 - `http://backend:8000/` answers — FastAPI's root. Reaching it implies the
@@ -115,14 +116,24 @@ these secrets, never in tracked files.
 > Add these **before** merging the workflow to `main`, otherwise the first
 > auto-deploy run will fail with missing-secret errors.
 
-### 4. Use a named tunnel
+## The changing tunnel hostname
 
-With the quick tunnel (`cloudflared tunnel --url http://nginx:80`) the public
-`*.trycloudflare.com` hostname changes every time the stack restarts — so every
-auto-deploy would silently break the Telegram menu button until you re-ran
-`./deploy.sh set-bot-url` by hand. Point the stack at a **named** tunnel with a
-fixed `APP_HOSTNAME` before relying on auto-deploy; then `set-bot-url` is a
-one-time step.
+The stack uses a Cloudflare **quick** tunnel, so the public
+`*.trycloudflare.com` hostname is reassigned every time `cloudflared` restarts —
+including on every deploy. Nothing needs to be done about it up front:
+
+- `tunnel` runs with `--metrics 0.0.0.0:2000`, which serves the current hostname
+  at `http://tunnel:2000/quicktunnel`, and
+- the `bot` service (`scripts/bot.py`, stdlib only) long-polls Telegram and, on
+  `/start`, reads that hostname and re-points the Mini App menu button at it.
+
+So after a deploy the button is stale until someone sends `/start` to the bot,
+which fixes it in one step. Long polling is deliberate: registering a webhook
+would need the very URL that keeps changing, so a stale webhook could never
+repair itself.
+
+`ALLOWED_USER_IDS` gates who may trigger that — an empty list means anyone, so
+keep it set to your own Telegram id in `.env`.
 
 ## Manual deploy (fallback)
 

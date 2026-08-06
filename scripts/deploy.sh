@@ -15,8 +15,12 @@
 set -euo pipefail
 
 COMPOSE_FILE="docker-compose.prod.yml"
-# Only these are built from this repo; db/nginx/tunnel are upstream images.
+# Only these are built from this repo; the rest run upstream images.
 BUILT_SERVICES=(backend frontend)
+# Every service is watched for crash loops. The internal probes below cannot
+# see `tunnel` or `bot`, but a stack that is healthy inside and unreachable
+# from Telegram is not a good deploy.
+WATCHED_SERVICES=(backend frontend db nginx tunnel bot)
 IMAGE_PREFIX="tma-portfolio"   # must match the `image:` keys in the compose file
 HEALTH_TIMEOUT=120             # generous: the Pi is slow and db gates backend
 HEALTH_INTERVAL=5
@@ -74,7 +78,7 @@ while [ "$elapsed" -lt "$HEALTH_TIMEOUT" ]; do
   elapsed=$((elapsed + HEALTH_INTERVAL))
 
   # A crash loop is fatal — no point waiting out the whole timeout.
-  for svc in "${BUILT_SERVICES[@]}"; do
+  for svc in "${WATCHED_SERVICES[@]}"; do
     cid="$(compose ps -q "$svc" 2>/dev/null || true)"
     if [ -n "$cid" ]; then
       restarts="$(docker inspect -f '{{.RestartCount}}' "$cid" 2>/dev/null || echo 0)"
@@ -115,7 +119,7 @@ fi
 
 # --- Rollback --------------------------------------------------------------
 echo "[deploy] UNHEALTHY ✗ — recent logs:"
-for svc in "${BUILT_SERVICES[@]}"; do
+for svc in "${WATCHED_SERVICES[@]}"; do
   echo "--- $svc ---"
   compose logs --tail 40 "$svc" 2>&1 || true
 done
