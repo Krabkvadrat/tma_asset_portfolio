@@ -32,8 +32,8 @@ probes run from inside the compose network via the nginx container's busybox
 `wget`. The deploy is healthy only when **all** hold within **120s**:
 
 - no service is crash-looping (`RestartCount == 0` on the freshly created
-  containers) — including `tunnel` and `bot`, which the internal probes below
-  cannot see but without which the app is unreachable from Telegram,
+  containers) — including `tunnel`, which the internal probes below cannot see
+  but without which the app is unreachable from Telegram,
 - `http://localhost/` answers inside the nginx container — nginx → frontend, so
   the SPA is really being served, and
 - `http://backend:8000/` answers — FastAPI's root. Reaching it implies the
@@ -70,9 +70,9 @@ successful deploy it removes only this project's own superseded image.
   ```bash
   ./deploy.sh up
   ```
-- `./.env` must exist with the real `BOT_TOKEN` (and `TUNNEL_TOKEN` /
-  `APP_HOSTNAME` if you use a named tunnel). It is gitignored, so it survives
-  `git reset --hard`.
+- `./.env` must exist with the real `BOT_TOKEN`, `TUNNEL_TOKEN` and
+  `APP_HOSTNAME` (see [The tunnel](#the-tunnel)). It is gitignored, so it
+  survives `git reset --hard`.
 - The checkout must have **no local edits** to tracked files — `git reset --hard`
   discards them. Keep Pi-specific config in `.env` only.
 
@@ -116,24 +116,49 @@ these secrets, never in tracked files.
 > Add these **before** merging the workflow to `main`, otherwise the first
 > auto-deploy run will fail with missing-secret errors.
 
-## The changing tunnel hostname
+## The tunnel
 
-The stack uses a Cloudflare **quick** tunnel, so the public
-`*.trycloudflare.com` hostname is reassigned every time `cloudflared` restarts —
-including on every deploy. Nothing needs to be done about it up front:
+The stack publishes no host ports: `nginx` is reachable only through a
+Cloudflare **named tunnel**, so the Pi needs no port forwarding and no inbound
+firewall rule. Unlike the quick tunnel this replaced, the hostname is fixed —
+which is what makes the Telegram menu button a one-time setting.
 
-- `tunnel` runs with `--metrics 0.0.0.0:2000`, which serves the current hostname
-  at `http://tunnel:2000/quicktunnel`, and
-- the `bot` service (`scripts/bot.py`, stdlib only) long-polls Telegram and, on
-  `/start`, reads that hostname and re-points the Mini App menu button at it.
+Where the tunnel points lives in the Cloudflare dashboard, not in this repo;
+the `tunnel` container only carries the connector token that identifies it.
 
-So after a deploy the button is stale until someone sends `/start` to the bot,
-which fixes it in one step. Long polling is deliberate: registering a webhook
-would need the very URL that keeps changing, so a stale webhook could never
-repair itself.
+1. **Cloudflare dashboard → Networking → Tunnels → Create a tunnel**, type
+   *Cloudflared*. It offers an install command per OS — the connector token is
+   the long string after `--token` in it. Copy that and leave the command
+   alone; the compose file runs the connector.
+2. On the Pi, add both values to `./.env` and bring the stack up:
+   ```
+   TUNNEL_TOKEN=<connector token>
+   APP_HOSTNAME=portfolio.example.com
+   ```
+   `TUNNEL_TOKEN` is required by `docker-compose.prod.yml`: without it
+   `docker compose up` refuses to start rather than bringing up a stack nothing
+   can reach. `APP_HOSTNAME` is only read by `deploy.sh` — it is how the script
+   knows the public URL, since the container never reports one.
+3. Wait for the tunnel to show as **Healthy** in the dashboard, then open it →
+   **Routes** tab → **Add route** → **Published application**:
+   - *Subdomain* + *Domain* — the address the Mini App will open, e.g.
+     `portfolio` + `example.com`.
+   - *Service URL* — `http://nginx:80`. That is the compose service name; the
+     connector runs on the same network and resolves it.
 
-`ALLOWED_USER_IDS` gates who may trigger that — an empty list means anyone, so
-keep it set to your own Telegram id in `.env`.
+   Routes cannot be added before a connector has come online at least once,
+   which is why the token goes in first. Cloudflare creates the proxied DNS
+   record itself; the domain has to be in the same Cloudflare account, i.e. its
+   nameservers point at Cloudflare. (Older dashboards call this the tunnel's
+   *Public Hostname* tab, under Zero Trust → Networks → Tunnels.)
+4. `./deploy.sh set-bot-url` **once**. The menu button now points at
+   `https://$APP_HOSTNAME` and stays valid across deploys and restarts.
+
+`ALLOWED_USER_IDS` still gates who the backend serves; the tunnel itself is
+public, as it must be for Telegram to load the Mini App.
+
+Moving to another hostname is a dashboard change plus an `.env` edit — no code
+change, no redeploy of the images.
 
 ## Manual deploy (fallback)
 
@@ -154,6 +179,10 @@ bash scripts/deploy.sh
   `authorized_keys`, or `DEPLOY_USER` is wrong.
 - **Host key verification failed:** the workflow runs `ssh-keyscan` each time; if
   the Pi's host key changed, the run picks up the new one automatically.
+- **Cloudflare error 1033 / the hostname does not resolve:** the tunnel is down
+  or the token is stale — check `./deploy.sh logs tunnel`.
+- **502 from the hostname:** the tunnel is up but its public hostname points at
+  the wrong service; it must be `HTTP` → `nginx:80`.
 - **Health check times out on a cold build:** the first deploy after a long gap
   rebuilds everything; the build happens *before* the 120s health window starts,
   so this usually means the app genuinely failed to start — check the logs the

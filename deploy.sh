@@ -3,7 +3,6 @@ set -euo pipefail
 
 COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE=".env"
-TUNNEL_CONTAINER="tunnel"
 
 # ── Helpers ──────────────────────────────────────────────────
 
@@ -11,18 +10,14 @@ red()   { printf '\033[0;31m%s\033[0m\n' "$*"; }
 green() { printf '\033[0;32m%s\033[0m\n' "$*"; }
 bold()  { printf '\033[1m%s\033[0m\n' "$*"; }
 
-get_tunnel_url() {
-    for i in $(seq 1 30); do
-        url=$(docker compose -f "$COMPOSE_FILE" logs "$TUNNEL_CONTAINER" 2>/dev/null \
-            | grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' \
-            | tail -1)
-        if [ -n "$url" ]; then
-            echo "$url"
-            return 0
-        fi
-        sleep 2
-    done
-    return 1
+# The named tunnel always serves the same hostname, so the public URL is a
+# config value rather than something to fish out of the tunnel's logs.
+app_url() {
+    host=$(grep "^APP_HOSTNAME=" "$ENV_FILE" 2>/dev/null | cut -d= -f2-)
+    if [ -z "$host" ] || [ "$host" = "portfolio.example.com" ]; then
+        return 1
+    fi
+    echo "https://${host#https://}"
 }
 
 # ── Commands ─────────────────────────────────────────────────
@@ -47,13 +42,18 @@ cmd_up() {
         exit 1
     fi
 
+    # Same for the tunnel: with the placeholder token cloudflared just
+    # crash-loops on authentication.
+    if grep -q "^TUNNEL_TOKEN=your_tunnel_token_here" "$ENV_FILE" 2>/dev/null; then
+        red "Please edit $ENV_FILE and set your real TUNNEL_TOKEN before deploying."
+        exit 1
+    fi
+
     bold "Building and starting services..."
     docker compose -f "$COMPOSE_FILE" up --build -d
 
     echo ""
-    bold "Waiting for tunnel URL..."
-    if url=$(get_tunnel_url); then
-        echo ""
+    if url=$(app_url); then
         green "============================================"
         green "  App is live at: $url"
         green "============================================"
@@ -62,8 +62,7 @@ cmd_up() {
         echo "  ./deploy.sh set-bot-url"
         echo ""
     else
-        red "Could not detect tunnel URL. Check logs:"
-        echo "  docker compose -f $COMPOSE_FILE logs tunnel"
+        red "Set APP_HOSTNAME in $ENV_FILE to the hostname routed to this tunnel."
     fi
 }
 
@@ -87,10 +86,10 @@ cmd_status() {
 }
 
 cmd_url() {
-    if url=$(get_tunnel_url); then
+    if url=$(app_url); then
         echo "$url"
     else
-        red "Tunnel not running or URL not found."
+        red "APP_HOSTNAME not set in $ENV_FILE."
         exit 1
     fi
 }
@@ -107,9 +106,8 @@ cmd_set_bot_url() {
         exit 1
     fi
 
-    bold "Getting tunnel URL..."
-    if ! url=$(get_tunnel_url); then
-        red "Tunnel not running. Start with: ./deploy.sh"
+    if ! url=$(app_url); then
+        red "APP_HOSTNAME not set in $ENV_FILE."
         exit 1
     fi
 
@@ -151,7 +149,7 @@ case "${1:-up}" in
         echo "  rebuild       Rebuild and restart"
         echo "  logs [svc]    Follow logs (optionally for a specific service)"
         echo "  status        Show running containers"
-        echo "  url           Print the current tunnel URL"
-        echo "  set-bot-url   Set the tunnel URL as the Telegram bot menu button"
+        echo "  url           Print the app's public URL"
+        echo "  set-bot-url   Set that URL as the Telegram bot menu button"
         ;;
 esac

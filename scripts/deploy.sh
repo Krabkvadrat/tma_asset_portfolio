@@ -18,9 +18,9 @@ COMPOSE_FILE="docker-compose.prod.yml"
 # Only these are built from this repo; the rest run upstream images.
 BUILT_SERVICES=(backend frontend)
 # Every service is watched for crash loops. The internal probes below cannot
-# see `tunnel` or `bot`, but a stack that is healthy inside and unreachable
-# from Telegram is not a good deploy.
-WATCHED_SERVICES=(backend frontend db nginx tunnel bot)
+# see `tunnel`, but a stack that is healthy inside and unreachable from
+# Telegram is not a good deploy.
+WATCHED_SERVICES=(backend frontend db nginx tunnel)
 IMAGE_PREFIX="tma-portfolio"   # must match the `image:` keys in the compose file
 HEALTH_TIMEOUT=120             # generous: the Pi is slow and db gates backend
 HEALTH_INTERVAL=5
