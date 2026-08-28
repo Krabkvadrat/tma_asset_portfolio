@@ -30,6 +30,22 @@ cd "$(dirname "$0")/.."
 
 compose() { docker compose -f "$COMPOSE_FILE" "$@"; }
 
+# Last assignment wins, the way docker compose reads an env file.
+env_value() { grep "^$2=" "$1" 2>/dev/null | tail -1 | cut -d= -f2- || true; }
+
+# The compose file deliberately does not use compose's required-variable syntax
+# for the tunnel token (that would break `down` and `logs` on a Pi with an empty
+# .env), so the check lives here — before anything is rebuilt. A value still
+# equal to .env.example's counts as not filled in.
+for var in BOT_TOKEN TUNNEL_TOKEN APP_HOSTNAME; do
+  value="$(env_value .env "$var")"
+  example="$(env_value .env.example "$var")"
+  if [ -z "$value" ] || { [ -n "$example" ] && [ "$value" = "$example" ]; }; then
+    echo "[deploy] $var is missing from .env (or still the example value) — refusing to deploy."
+    exit 1
+  fi
+done
+
 # Preserve the currently running images so we can roll back if the new ones are
 # bad. Also remember what :prev pointed at *before* this deploy — it becomes
 # untagged once we move the tag, and is the only thing we clean up on success.
@@ -65,9 +81,45 @@ compose up -d --build --force-recreate
 #   http://backend:8000/   FastAPI root; reaching it implies the DB was up too,
 #                          since lifespan runs create_all before serving
 #
-# Probing here rather than through the public hostname keeps a Cloudflare
-# outage from being reported as a bad deploy.
+# These two say nothing about the tunnel's routing; the public hostname is
+# checked separately below, where an unreachable Cloudflare edge is downgraded
+# to a warning so an outage is not reported as a bad deploy.
 probe() { compose exec -T nginx wget -q -T 5 -O /dev/null "$1"; }
+
+# The internal probes cannot see the tunnel's routing: a published application
+# pointed at the wrong service leaves the stack healthy inside and broken for
+# everyone outside. So check the real hostname too — but only an answer *from*
+# Cloudflare counts as a verdict. Not reaching the edge at all (DNS still
+# propagating, Cloudflare having a bad day) is not this deploy's fault and only
+# warns, which is the concern that kept the quick-tunnel setup from probing
+# publicly at all.
+public_probe() {
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "[deploy] curl not installed — skipping the public probe."
+    return 0
+  fi
+  if ! url="$(bash deploy.sh url)"; then
+    echo "[deploy] WARNING: no usable APP_HOSTNAME — skipping the public probe."
+    return 0
+  fi
+
+  status=000
+  for _ in $(seq 1 6); do
+    status="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$url/" || echo 000)"
+    case "$status" in
+      2*|3*) echo "[deploy] $url serves the app ✓"; return 0 ;;
+    esac
+    echo "[deploy]   ...$url answered $status, retrying"
+    sleep 10
+  done
+
+  if [ "$status" = "000" ]; then
+    echo "[deploy] WARNING: $url never answered — DNS or Cloudflare, not this deploy. Continuing."
+    return 0
+  fi
+  echo "[deploy] $url answered $status — the stack is healthy but the tunnel route is wrong."
+  return 1
+}
 
 echo "[deploy] Health check (timeout ${HEALTH_TIMEOUT}s)..."
 healthy=0
@@ -98,6 +150,11 @@ while [ "$elapsed" -lt "$HEALTH_TIMEOUT" ]; do
   fi
   echo "[deploy]   ...not serving yet (${elapsed}s)"
 done
+
+if [ "$healthy" -eq 1 ]; then
+  echo "[deploy] Internal probes healthy ✓"
+  public_probe || healthy=0
+fi
 
 if [ "$healthy" -eq 1 ]; then
   echo "[deploy] Healthy ✓"

@@ -10,14 +10,48 @@ red()   { printf '\033[0;31m%s\033[0m\n' "$*"; }
 green() { printf '\033[0;32m%s\033[0m\n' "$*"; }
 bold()  { printf '\033[1m%s\033[0m\n' "$*"; }
 
+# Last assignment wins, the way docker compose reads an env file.
+env_value() { grep "^$2=" "$1" 2>/dev/null | tail -1 | cut -d= -f2- || true; }
+
+# A value still equal to the one shipped in .env.example has not been filled in
+# yet. Comparing against that file keeps the placeholders in one place.
+require_config() {
+    for var in "$@"; do
+        value=$(env_value "$ENV_FILE" "$var")
+        example=$(env_value ".env.example" "$var")
+        if [ -z "$value" ] || { [ -n "$example" ] && [ "$value" = "$example" ]; }; then
+            red "Set a real $var in $ENV_FILE before deploying."
+            exit 1
+        fi
+    done
+}
+
 # The named tunnel always serves the same hostname, so the public URL is a
-# config value rather than something to fish out of the tunnel's logs.
+# config value rather than something to fish out of the tunnel's logs. The
+# value is hand-edited on the Pi, so tolerate what people actually type.
 app_url() {
-    host=$(grep "^APP_HOSTNAME=" "$ENV_FILE" 2>/dev/null | cut -d= -f2-)
-    if [ -z "$host" ] || [ "$host" = "portfolio.example.com" ]; then
-        return 1
-    fi
-    echo "https://${host#https://}"
+    host=$(env_value "$ENV_FILE" APP_HOSTNAME)
+    host=${host%%#*}             # inline comment
+    host=${host//[$'\r\n\t ']/}  # CR from a CRLF editor, stray whitespace
+    host=${host#http://}
+    host=${host#https://}
+    host=${host%%/*}                # a path pasted along with the hostname
+    [ -n "$host" ] || return 1
+    echo "https://$host"
+}
+
+# cloudflared logs this once per edge connection: the local proof that the
+# token was accepted and the tunnel is really attached. Without it the URL
+# printed below would be an unverified echo of the config file.
+tunnel_connected() {
+    for _ in $(seq 1 15); do
+        if docker compose -f "$COMPOSE_FILE" logs tunnel 2>/dev/null \
+            | grep -q "Registered tunnel connection"; then
+            return 0
+        fi
+        sleep 2
+    done
+    return 1
 }
 
 # ── Commands ─────────────────────────────────────────────────
@@ -36,16 +70,12 @@ cmd_up() {
         fi
     fi
 
-    # Validate BOT_TOKEN is set
-    if grep -q "^BOT_TOKEN=your_bot_token_here" "$ENV_FILE" 2>/dev/null; then
-        red "Please edit $ENV_FILE and set your real BOT_TOKEN before deploying."
-        exit 1
-    fi
+    # Without any one of these the stack comes up unreachable, so fail before
+    # building rather than after.
+    require_config BOT_TOKEN TUNNEL_TOKEN APP_HOSTNAME
 
-    # Same for the tunnel: with the placeholder token cloudflared just
-    # crash-loops on authentication.
-    if grep -q "^TUNNEL_TOKEN=your_tunnel_token_here" "$ENV_FILE" 2>/dev/null; then
-        red "Please edit $ENV_FILE and set your real TUNNEL_TOKEN before deploying."
+    if ! url=$(app_url); then
+        red "APP_HOSTNAME in $ENV_FILE is not a usable hostname."
         exit 1
     fi
 
@@ -53,17 +83,20 @@ cmd_up() {
     docker compose -f "$COMPOSE_FILE" up --build -d
 
     echo ""
-    if url=$(app_url); then
-        green "============================================"
-        green "  App is live at: $url"
-        green "============================================"
-        echo ""
-        echo "To set this as your Telegram bot's menu button, run:"
-        echo "  ./deploy.sh set-bot-url"
-        echo ""
-    else
-        red "Set APP_HOSTNAME in $ENV_FILE to the hostname routed to this tunnel."
+    bold "Waiting for the tunnel to register a connection..."
+    if ! tunnel_connected; then
+        red "The tunnel never connected — the app is NOT reachable. Check:"
+        echo "  ./deploy.sh logs tunnel"
+        exit 1
     fi
+
+    green "============================================"
+    green "  App is live at: $url"
+    green "============================================"
+    echo ""
+    echo "To set this as your Telegram bot's menu button, run:"
+    echo "  ./deploy.sh set-bot-url"
+    echo ""
 }
 
 cmd_down() {
@@ -100,14 +133,11 @@ cmd_set_bot_url() {
         exit 1
     fi
 
-    BOT_TOKEN=$(grep "^BOT_TOKEN=" "$ENV_FILE" | cut -d= -f2-)
-    if [ -z "$BOT_TOKEN" ] || [ "$BOT_TOKEN" = "your_bot_token_here" ]; then
-        red "BOT_TOKEN not set in $ENV_FILE"
-        exit 1
-    fi
+    require_config BOT_TOKEN APP_HOSTNAME
+    BOT_TOKEN=$(env_value "$ENV_FILE" BOT_TOKEN)
 
     if ! url=$(app_url); then
-        red "APP_HOSTNAME not set in $ENV_FILE."
+        red "APP_HOSTNAME in $ENV_FILE is not a usable hostname."
         exit 1
     fi
 

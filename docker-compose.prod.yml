@@ -52,8 +52,13 @@ services:
     image: cloudflare/cloudflared:latest
     # Named tunnel: which hostname it serves and that it routes to nginx:80 are
     # configured in the Cloudflare dashboard and keyed by this token, so the
-    # public URL survives restarts. Fails fast if ./.env has no token.
-    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN:?set TUNNEL_TOKEN in .env}
+    # public URL survives restarts. The token is passed through the environment
+    # rather than argv, where `ps` and `docker inspect` would expose it; both
+    # deploy scripts refuse to run without it, so it stays a plain `:-` default
+    # here and `down`/`logs`/`ps` keep working on a Pi with an empty .env.
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN:-}
     depends_on:
       - nginx
     restart: unless-stopped

@@ -27,9 +27,15 @@ You can also re-deploy without a new commit:
 
 ### Health check
 
+Before anything is rebuilt, `scripts/deploy.sh` checks that `.env` really holds
+`BOT_TOKEN`, `TUNNEL_TOKEN` and `APP_HOSTNAME` (a value still equal to
+`.env.example`'s counts as unset) and refuses to deploy otherwise — the compose
+file itself no longer enforces the token, so that `down`, `logs` and `ps` keep
+working on a Pi whose `.env` is empty.
+
 `nginx` publishes no host port — only the `tunnel` container reaches it — so the
-probes run from inside the compose network via the nginx container's busybox
-`wget`. The deploy is healthy only when **all** hold within **120s**:
+internal probes run from inside the compose network via the nginx container's
+busybox `wget`. The deploy is healthy only when **all** hold within **120s**:
 
 - no service is crash-looping (`RestartCount == 0` on the freshly created
   containers) — including `tunnel`, which the internal probes below cannot see
@@ -40,8 +46,17 @@ probes run from inside the compose network via the nginx container's busybox
   database was up too, since the `lifespan` handler runs `create_all` before the
   app serves anything.
 
-Probing here rather than through the public hostname keeps a Cloudflare outage
-from being reported as a bad deploy.
+Those three see the stack from the inside, where the tunnel's routing is
+invisible: a published application pointed at the wrong service leaves every
+probe green and every user on a 502. So one more check runs afterwards, against
+the real `https://$APP_HOSTNAME`, and only an answer **from** Cloudflare counts:
+
+- `2xx`/`3xx` — the hostname really serves the app, deploy is healthy;
+- any other status — Cloudflare is up but the route is wrong, so the deploy
+  **fails and rolls back**;
+- no answer at all (DNS still propagating, or Cloudflare having a bad day) —
+  logged as a warning and the deploy still counts as healthy, since that is not
+  something this deploy broke.
 
 ### Rollback
 
@@ -135,10 +150,12 @@ the `tunnel` container only carries the connector token that identifies it.
    TUNNEL_TOKEN=<connector token>
    APP_HOSTNAME=portfolio.example.com
    ```
-   `TUNNEL_TOKEN` is required by `docker-compose.prod.yml`: without it
-   `docker compose up` refuses to start rather than bringing up a stack nothing
-   can reach. `APP_HOSTNAME` is only read by `deploy.sh` — it is how the script
-   knows the public URL, since the container never reports one.
+   The token reaches `cloudflared` through the container's environment, not its
+   command line, so it does not show up in `ps` output. Both `./deploy.sh up`
+   and `scripts/deploy.sh` refuse to run without these two values.
+   `APP_HOSTNAME` is what tells the scripts the public URL — the container never
+   reports one — and it is worth pinning `ALLOWED_ORIGINS` to `https://` + that
+   same hostname, now that the app is served from exactly one origin.
 3. Wait for the tunnel to show as **Healthy** in the dashboard, then open it →
    **Routes** tab → **Add route** → **Published application**:
    - *Subdomain* + *Domain* — the address the Mini App will open, e.g.
@@ -156,6 +173,11 @@ the `tunnel` container only carries the connector token that identifies it.
 
 `ALLOWED_USER_IDS` still gates who the backend serves; the tunnel itself is
 public, as it must be for Telegram to load the Mini App.
+
+Nothing in the stack talks to Telegram any more — the `bot` container that used
+to chase the quick tunnel's hostname is gone, so the bot answers no commands and
+`/start` does nothing. The menu button is set only by `./deploy.sh set-bot-url`,
+which is a one-time step because the hostname no longer changes.
 
 Moving to another hostname is a dashboard change plus an `.env` edit — no code
 change, no redeploy of the images.
