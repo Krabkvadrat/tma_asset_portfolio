@@ -54,9 +54,12 @@ the real `https://$APP_HOSTNAME`, and only an answer **from** Cloudflare counts:
 - `2xx`/`3xx` — the hostname really serves the app, deploy is healthy;
 - any other status — Cloudflare is up but the route is wrong, so the deploy
   **fails and rolls back**;
-- the hostname does not resolve at all — Cloudflare creates its DNS record
-  together with the published application route, so this means the route is
-  missing: the deploy **fails and rolls back**;
+- the hostname does not resolve — Cloudflare creates its DNS record together
+  with the published application route, so this means the route is missing:
+  the deploy **fails and rolls back**. The lookup goes through Cloudflare's
+  DoH endpoint rather than the Pi's resolver, whose negative cache would
+  otherwise report a freshly created hostname as missing for up to the zone's
+  negative TTL;
 - it resolves but never answers (Cloudflare having a bad day, or the Pi's
   egress) — logged as a warning and the deploy still counts as healthy, since
   that is not something this deploy broke.

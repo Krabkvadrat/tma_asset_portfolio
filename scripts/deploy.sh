@@ -96,10 +96,6 @@ probe() { compose exec -T nginx wget -q -T 5 -O /dev/null "$1"; }
 # propagating, Cloudflare having a bad day) is not this deploy's fault and only
 # warns, which is the concern that kept the quick-tunnel setup from probing
 # publicly at all.
-# glibc's resolver front-end; when it is absent the check is skipped and curl
-# gets to speak for itself.
-resolves() { ! command -v getent >/dev/null 2>&1 || getent hosts "$1" >/dev/null 2>&1; }
-
 public_probe() {
   if ! command -v curl >/dev/null 2>&1; then
     echo "[deploy] curl not installed — skipping the public probe."
@@ -109,39 +105,39 @@ public_probe() {
     echo "[deploy] WARNING: no usable APP_HOSTNAME — skipping the public probe."
     return 0
   fi
-  host="${url#https://}"
 
-  resolved=0
+  # Resolve through Cloudflare's DoH endpoint where curl supports it. The
+  # hostname's record is authoritative at Cloudflare the moment the route
+  # exists, while this machine's own resolver can hold a stale negative answer
+  # for the zone's whole negative TTL — which would fail a good deploy over a
+  # site that every real user can reach.
+  doh=()
+  if curl --help all 2>/dev/null | grep -q -- '--doh-url'; then
+    doh=(--doh-url https://cloudflare-dns.com/dns-query)
+  fi
+
+  rc=0
   status=""
   for _ in $(seq 1 6); do
-    if [ "$resolved" -eq 0 ] && resolves "$host"; then
-      resolved=1
-    fi
-
-    if [ "$resolved" -eq 0 ]; then
-      echo "[deploy]   ...$host does not resolve yet, retrying"
-    else
-      # curl prints 000 itself when it never got a response, so there is no
-      # fallback echo here: one would append a second 000 to the status.
-      status="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$url/" || true)"
-      case "$status" in
-        2*|3*) echo "[deploy] $url serves the app ✓"; return 0 ;;
-      esac
-      echo "[deploy]   ...$url answered ${status:-000}, retrying"
-    fi
+    rc=0
+    status="$(curl -s "${doh[@]}" -o /dev/null -w '%{http_code}' --max-time 15 "$url/")" || rc=$?
+    case "$status" in
+      2*|3*) echo "[deploy] $url serves the app ✓"; return 0 ;;
+    esac
+    echo "[deploy]   ...$url answered ${status:-000} (curl exit $rc), retrying"
     sleep 10
   done
 
-  # Cloudflare creates the hostname's DNS record together with the published
-  # application route, so a name that never resolves means the route is missing
-  # — a misconfiguration this deploy should report, not wave through.
-  if [ "$resolved" -eq 0 ]; then
-    echo "[deploy] $host never resolved — the tunnel has no published application route for it."
+  # curl exit 6 is "could not resolve host" — asked over DoH that is
+  # Cloudflare's own answer, and Cloudflare creates the hostname's DNS record
+  # together with the published application route. So the route is missing.
+  if [ "$rc" -eq 6 ]; then
+    echo "[deploy] $url does not resolve at Cloudflare — the tunnel has no published application route for it."
     return 1
   fi
 
   case "$status" in
-    000|"") echo "[deploy] WARNING: $host resolves but never answered — Cloudflare or the network, not this deploy. Continuing."
+    000|"") echo "[deploy] WARNING: $url never answered (curl exit $rc) — Cloudflare or the network, not this deploy. Continuing."
             return 0 ;;
   esac
   echo "[deploy] $url answered $status — the stack is healthy but the tunnel route is wrong."
