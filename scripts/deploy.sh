@@ -71,7 +71,10 @@ echo "[deploy] Building and starting ($COMPOSE_FILE)..."
 # an unrelated restart hours ago, yielding a false "crash loop". A fresh
 # container starts at RestartCount=0, so that signal becomes meaningful.
 # Recreating db is safe: its data lives in the postgres_data volume.
-compose up -d --build --force-recreate
+# --remove-orphans sweeps containers of services that no longer exist in the
+# file (the `bot` container the named tunnel made redundant); it only touches
+# this compose project, not the other projects sharing the Pi.
+compose up -d --build --force-recreate --remove-orphans
 
 # --- Health check ----------------------------------------------------------
 # nginx publishes no host port (only the tunnel reaches it), so probe from
@@ -93,6 +96,10 @@ probe() { compose exec -T nginx wget -q -T 5 -O /dev/null "$1"; }
 # propagating, Cloudflare having a bad day) is not this deploy's fault and only
 # warns, which is the concern that kept the quick-tunnel setup from probing
 # publicly at all.
+# glibc's resolver front-end; when it is absent the check is skipped and curl
+# gets to speak for itself.
+resolves() { ! command -v getent >/dev/null 2>&1 || getent hosts "$1" >/dev/null 2>&1; }
+
 public_probe() {
   if ! command -v curl >/dev/null 2>&1; then
     echo "[deploy] curl not installed — skipping the public probe."
@@ -102,21 +109,41 @@ public_probe() {
     echo "[deploy] WARNING: no usable APP_HOSTNAME — skipping the public probe."
     return 0
   fi
+  host="${url#https://}"
 
-  status=000
+  resolved=0
+  status=""
   for _ in $(seq 1 6); do
-    status="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$url/" || echo 000)"
-    case "$status" in
-      2*|3*) echo "[deploy] $url serves the app ✓"; return 0 ;;
-    esac
-    echo "[deploy]   ...$url answered $status, retrying"
+    if [ "$resolved" -eq 0 ] && resolves "$host"; then
+      resolved=1
+    fi
+
+    if [ "$resolved" -eq 0 ]; then
+      echo "[deploy]   ...$host does not resolve yet, retrying"
+    else
+      # curl prints 000 itself when it never got a response, so there is no
+      # fallback echo here: one would append a second 000 to the status.
+      status="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$url/" || true)"
+      case "$status" in
+        2*|3*) echo "[deploy] $url serves the app ✓"; return 0 ;;
+      esac
+      echo "[deploy]   ...$url answered ${status:-000}, retrying"
+    fi
     sleep 10
   done
 
-  if [ "$status" = "000" ]; then
-    echo "[deploy] WARNING: $url never answered — DNS or Cloudflare, not this deploy. Continuing."
-    return 0
+  # Cloudflare creates the hostname's DNS record together with the published
+  # application route, so a name that never resolves means the route is missing
+  # — a misconfiguration this deploy should report, not wave through.
+  if [ "$resolved" -eq 0 ]; then
+    echo "[deploy] $host never resolved — the tunnel has no published application route for it."
+    return 1
   fi
+
+  case "$status" in
+    000|"") echo "[deploy] WARNING: $host resolves but never answered — Cloudflare or the network, not this deploy. Continuing."
+            return 0 ;;
+  esac
   echo "[deploy] $url answered $status — the stack is healthy but the tunnel route is wrong."
   return 1
 }
