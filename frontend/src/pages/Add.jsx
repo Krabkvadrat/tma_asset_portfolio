@@ -186,7 +186,7 @@ export default function Add() {
           )}
 
           <label style={{ ...formLabelSt, marginTop: 14 }}>Name</label>
-          <input style={inputSt} placeholder="e.g. Tinkoff Deposit" value={form.name}
+          <input style={inputSt} placeholder={currentType?.placeholder || "e.g. Tinkoff Deposit"} value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
         </>
       )}
