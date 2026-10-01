@@ -7,6 +7,7 @@ export const ALL_ASSET_TYPES = [
   { key: "cash", label: "Cash", icon: "💵", color: "#10B981" },
   { key: "crypto", label: "Crypto", icon: "₿", color: "#EC4899" },
   { key: "stocks_bonds", label: "Stocks/Bonds", icon: "📈", color: "#F59E0B" },
+  { key: "real_estate", label: "Real Estate", icon: "🏠", color: "#06B6D4" },
 ];
 
 export const PERIODS = ["7d", "30d", "90d", "180d", "1Y", "Custom"];

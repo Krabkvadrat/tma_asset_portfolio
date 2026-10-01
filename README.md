@@ -1,6 +1,6 @@
 # Portfolio Tracker — Telegram Mini App
 
-A Telegram Mini App (TMA) for tracking personal financial assets across bank deposits, bank accounts, cash, crypto, and stocks/bonds.
+A Telegram Mini App (TMA) for tracking personal financial assets across bank deposits, bank accounts, cash, crypto, stocks/bonds, and real estate.
 
 ## Architecture
 

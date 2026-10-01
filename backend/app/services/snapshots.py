@@ -16,6 +16,7 @@ ASSET_TYPE_META = {
     "cash": {"label": "Cash", "icon": "💵", "color": "#10B981"},
     "crypto": {"label": "Crypto", "icon": "₿", "color": "#EC4899"},
     "stocks_bonds": {"label": "Stocks/Bonds", "icon": "📈", "color": "#F59E0B"},
+    "real_estate": {"label": "Real Estate", "icon": "🏠", "color": "#06B6D4"},
 }
 
 
