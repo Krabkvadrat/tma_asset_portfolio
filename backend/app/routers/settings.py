@@ -11,7 +11,7 @@ from app.schemas import UserSettingResponse, UserSettingUpdate
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 DEFAULT_SETTINGS: dict[str, object] = {
-    "enabled_types": ["deposits", "bank_accounts", "cash", "crypto", "stocks_bonds"],
+    "enabled_types": ["deposits", "bank_accounts", "cash", "crypto", "stocks_bonds", "real_estate"],
     "currencies": ["EUR", "USD", "RUB", "RSD"],
     "banks": {
         "deposits": ["Tinkoff", "Sber"],
