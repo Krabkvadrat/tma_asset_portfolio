@@ -55,6 +55,6 @@ async def get_portfolio_history(
     await ensure_today_snapshot(db, user_id, display_currency)
 
     days = PERIOD_DAYS.get(period, 30)
-    type_set = set(types.split(",")) if types is not None else None
+    type_set = {t.strip() for t in types.split(",") if t.strip()} if types is not None else None
     points = await get_history(db, user_id, display_currency, days, type_set)
     return [PortfolioHistoryPoint(**p) for p in points]

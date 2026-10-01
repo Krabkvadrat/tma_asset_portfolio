@@ -2,6 +2,9 @@ import { create } from "zustand";
 import { api } from "./api";
 import { ALL_ASSET_TYPES } from "./constants";
 
+// Bumped per chart request so only the latest response is applied.
+let chartSeq = 0;
+
 function todayStr() {
   return new Date().toISOString().split("T")[0];
 }
@@ -70,12 +73,11 @@ export const useStore = create((set, get) => ({
 
   loadChartData: async (period) => {
     try {
-      const p = period || get().period;
+      const seq = ++chartSeq;
       // Sum exactly the categories on screen, so the chart matches the total.
       const types = get().visibleTypes().map((t) => t.key);
-      const chartData = await api.getPortfolioHistory(p, types);
-      // A slower response for an older period/scope must not overwrite a newer one.
-      if (p !== get().period || types.join() !== get().visibleTypes().map((t) => t.key).join()) return;
+      const chartData = await api.getPortfolioHistory(period || get().period, types);
+      if (seq !== chartSeq) return;
       set({ chartData });
     } catch {
       // keep existing
