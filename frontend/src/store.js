@@ -18,7 +18,6 @@ export const useStore = create((set, get) => ({
   assets: [],
   transactions: [],
   chartData: [],
-  portfolio: null,
   rates: {},
 
   // UI
@@ -69,18 +68,14 @@ export const useStore = create((set, get) => ({
     }
   },
 
-  loadPortfolio: async () => {
-    try {
-      const portfolio = await api.getPortfolio();
-      set({ portfolio });
-    } catch {
-      // keep existing
-    }
-  },
-
   loadChartData: async (period) => {
     try {
-      const chartData = await api.getPortfolioHistory(period || get().period, get().assetScope);
+      const p = period || get().period;
+      // Sum exactly the categories on screen, so the chart matches the total.
+      const types = get().visibleTypes().map((t) => t.key);
+      const chartData = await api.getPortfolioHistory(p, types);
+      // A slower response for an older period/scope must not overwrite a newer one.
+      if (p !== get().period || types.join() !== get().visibleTypes().map((t) => t.key).join()) return;
       set({ chartData });
     } catch {
       // keep existing
@@ -110,7 +105,7 @@ export const useStore = create((set, get) => ({
   updateAsset: async (id, data) => {
     const updated = await api.updateAsset(id, data);
     set((s) => ({ assets: s.assets.map((a) => (a.id === id ? updated : a)) }));
-    get().loadPortfolio();
+    get().loadChartData();
     get().loadTransactions();
     return updated;
   },
@@ -118,26 +113,26 @@ export const useStore = create((set, get) => ({
   deleteAsset: async (id) => {
     await api.deleteAsset(id);
     set((s) => ({ assets: s.assets.filter((a) => a.id !== id) }));
-    get().loadPortfolio();
+    get().loadChartData();
   },
 
   createTransaction: async (data) => {
     const txn = await api.createTransaction(data);
     set((s) => ({ transactions: [txn, ...s.transactions] }));
     get().loadAssets();
-    get().loadPortfolio();
+    get().loadChartData();
     return txn;
   },
 
   setDisplayCurrency: async (currency) => {
     set({ displayCurrency: currency });
     await get().updateSetting("display_currency", currency);
-    get().loadPortfolio();
     get().loadChartData();
   },
 
   setEnabledTypes: async (types) => {
     set({ enabledTypes: types });
+    get().loadChartData();
     await get().updateSetting("enabled_types", types);
   },
 
@@ -172,11 +167,8 @@ export const useStore = create((set, get) => ({
 
   resetAllData: async () => {
     await api.resetData();
-    set({ assets: [], transactions: [], chartData: [], portfolio: null });
-    await Promise.all([
-      get().loadPortfolio(),
-      get().loadChartData(),
-    ]);
+    set({ assets: [], transactions: [], chartData: [] });
+    await get().loadChartData();
   },
 
   initApp: async () => {
@@ -189,7 +181,6 @@ export const useStore = create((set, get) => ({
       await Promise.all([
         get().loadAssets(),
         get().loadTransactions(),
-        get().loadPortfolio(),
         get().loadChartData(),
       ]);
     } finally {
