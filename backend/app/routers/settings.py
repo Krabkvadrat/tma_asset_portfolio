@@ -17,6 +17,7 @@ DEFAULT_SETTINGS: dict[str, object] = {
         "deposits": ["Tinkoff", "Sber"],
         "bank_accounts": ["Tinkoff", "Sber", "Alpha"],
     },
+    "asset_scope": "all",
 }
 
 

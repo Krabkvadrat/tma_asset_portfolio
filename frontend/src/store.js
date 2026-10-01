@@ -1,5 +1,9 @@
 import { create } from "zustand";
 import { api } from "./api";
+import { ALL_ASSET_TYPES } from "./constants";
+
+// Bumped per chart request so only the latest response is applied.
+let chartSeq = 0;
 
 function todayStr() {
   return new Date().toISOString().split("T")[0];
@@ -11,12 +15,12 @@ export const useStore = create((set, get) => ({
   currencies: ["EUR", "USD", "RUB", "RSD"],
   banks: { deposits: ["Tinkoff", "Sber"], bank_accounts: ["Tinkoff", "Sber", "Alpha"] },
   displayCurrency: "EUR",
+  assetScope: "all", // "all" | "liquid"
 
   // Data
   assets: [],
   transactions: [],
   chartData: [],
-  portfolio: null,
   rates: {},
 
   // UI
@@ -34,6 +38,7 @@ export const useStore = create((set, get) => ({
         currencies: map.currencies || get().currencies,
         banks: map.banks || get().banks,
         displayCurrency: map.display_currency || get().displayCurrency,
+        assetScope: map.asset_scope || get().assetScope,
       });
     } catch {
       // use defaults
@@ -66,18 +71,13 @@ export const useStore = create((set, get) => ({
     }
   },
 
-  loadPortfolio: async () => {
-    try {
-      const portfolio = await api.getPortfolio();
-      set({ portfolio });
-    } catch {
-      // keep existing
-    }
-  },
-
   loadChartData: async (period) => {
     try {
-      const chartData = await api.getPortfolioHistory(period || get().period);
+      const seq = ++chartSeq;
+      // Sum exactly the categories on screen, so the chart matches the total.
+      const types = get().visibleTypes().map((t) => t.key);
+      const chartData = await api.getPortfolioHistory(period || get().period, types);
+      if (seq !== chartSeq) return;
       set({ chartData });
     } catch {
       // keep existing
@@ -107,7 +107,7 @@ export const useStore = create((set, get) => ({
   updateAsset: async (id, data) => {
     const updated = await api.updateAsset(id, data);
     set((s) => ({ assets: s.assets.map((a) => (a.id === id ? updated : a)) }));
-    get().loadPortfolio();
+    get().loadChartData();
     get().loadTransactions();
     return updated;
   },
@@ -115,27 +115,41 @@ export const useStore = create((set, get) => ({
   deleteAsset: async (id) => {
     await api.deleteAsset(id);
     set((s) => ({ assets: s.assets.filter((a) => a.id !== id) }));
-    get().loadPortfolio();
+    get().loadChartData();
   },
 
   createTransaction: async (data) => {
     const txn = await api.createTransaction(data);
     set((s) => ({ transactions: [txn, ...s.transactions] }));
     get().loadAssets();
-    get().loadPortfolio();
+    get().loadChartData();
     return txn;
   },
 
   setDisplayCurrency: async (currency) => {
     set({ displayCurrency: currency });
     await get().updateSetting("display_currency", currency);
-    get().loadPortfolio();
     get().loadChartData();
   },
 
   setEnabledTypes: async (types) => {
     set({ enabledTypes: types });
+    get().loadChartData();
     await get().updateSetting("enabled_types", types);
+  },
+
+  setAssetScope: async (scope) => {
+    set({ assetScope: scope });
+    get().loadChartData();
+    await get().updateSetting("asset_scope", scope);
+  },
+
+  // Enabled types narrowed to the current All / Liquid scope.
+  visibleTypes: () => {
+    const { enabledTypes, assetScope } = get();
+    return ALL_ASSET_TYPES.filter(
+      (t) => enabledTypes.includes(t.key) && (assetScope === "all" || t.liquid),
+    );
   },
 
   setCurrencies: async (currencies) => {
@@ -155,11 +169,8 @@ export const useStore = create((set, get) => ({
 
   resetAllData: async () => {
     await api.resetData();
-    set({ assets: [], transactions: [], chartData: [], portfolio: null });
-    await Promise.all([
-      get().loadPortfolio(),
-      get().loadChartData(),
-    ]);
+    set({ assets: [], transactions: [], chartData: [] });
+    await get().loadChartData();
   },
 
   initApp: async () => {
@@ -172,7 +183,6 @@ export const useStore = create((set, get) => ({
       await Promise.all([
         get().loadAssets(),
         get().loadTransactions(),
-        get().loadPortfolio(),
         get().loadChartData(),
       ]);
     } finally {

@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useStore } from "../store";
-import { CURRENCY_SYMBOLS, ALL_ASSET_TYPES, PERIODS } from "../constants";
+import { CURRENCY_SYMBOLS, PERIODS } from "../constants";
 import { S } from "../styles";
 import ChartSVG from "../components/ChartSVG";
 import DonutChart from "../components/DonutChart";
+import ScopeToggle from "../components/ScopeToggle";
 import Modal from "../components/Modal";
 import { formLabelSt, inputSt, submitBtnSt } from "../styles";
 
@@ -15,8 +16,8 @@ const MASK = "•••••";
 
 export default function Portfolio() {
   const {
-    displayCurrency, enabledTypes, assets, chartData, period, setPeriod,
-    portfolio, toDisplay, privateMode,
+    displayCurrency, assets, chartData, period, setPeriod,
+    toDisplay, privateMode, visibleTypes,
   } = useStore();
   const hide = privateMode;
 
@@ -26,7 +27,7 @@ export default function Portfolio() {
   const [customRange, setCustomRange] = useState(null);
 
   const sym = CURRENCY_SYMBOLS[displayCurrency] || displayCurrency;
-  const enabledAssetTypes = ALL_ASSET_TYPES.filter((t) => enabledTypes.includes(t.key));
+  const enabledAssetTypes = visibleTypes();
 
   const assetsByType = {};
   assets.forEach((a) => {
@@ -34,14 +35,13 @@ export default function Portfolio() {
     assetsByType[a.type].push(a);
   });
 
-  const totalValue = portfolio?.total_value ?? assets
-    .filter((a) => enabledTypes.includes(a.type))
-    .reduce((s, a) => s + toDisplay(a.amount, a.currency), 0);
-
   const allocations = enabledAssetTypes.map((t) => ({
     label: t.label, icon: t.icon, color: t.color,
     value: (assetsByType[t.key] || []).reduce((s, a) => s + toDisplay(a.amount, a.currency), 0),
   }));
+
+  // Summed from the same allocations as the donut so the two always agree.
+  const totalValue = allocations.reduce((s, a) => s + a.value, 0);
 
   const hasHistory = chartData.length >= 2;
   const firstVal = hasHistory ? chartData[0].value : 0;
@@ -69,6 +69,7 @@ export default function Portfolio() {
       )}
 
       <div style={{ textAlign: "center", padding: "20px 0 8px" }}>
+        <ScopeToggle />
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 6 }}>
           <div style={{ fontSize: 11, color: "#636366", textTransform: "uppercase", letterSpacing: 1.4, fontWeight: 600 }}>
             Total Portfolio Value

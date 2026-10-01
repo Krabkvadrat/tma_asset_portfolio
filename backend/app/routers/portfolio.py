@@ -42,6 +42,9 @@ async def get_portfolio(
 @router.get("/history", response_model=list[PortfolioHistoryPoint])
 async def get_portfolio_history(
     period: str = Query(default="30d"),
+    types: str | None = Query(
+        default=None, description="Comma-separated asset types to sum; omit for the full total"
+    ),
     user_id: int = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -52,5 +55,6 @@ async def get_portfolio_history(
     await ensure_today_snapshot(db, user_id, display_currency)
 
     days = PERIOD_DAYS.get(period, 30)
-    points = await get_history(db, user_id, display_currency, days)
+    type_set = {t.strip() for t in types.split(",") if t.strip()} if types is not None else None
+    points = await get_history(db, user_id, display_currency, days, type_set)
     return [PortfolioHistoryPoint(**p) for p in points]

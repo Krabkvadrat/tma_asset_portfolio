@@ -25,8 +25,8 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  getPortfolio: () => request("/portfolio/"),
-  getPortfolioHistory: (period) => request(`/portfolio/history?period=${period}`),
+  getPortfolioHistory: (period, types) =>
+    request(`/portfolio/history?period=${period}&types=${encodeURIComponent(types.join(","))}`),
 
   getAssets: () => request("/assets/"),
   createAsset: (data) => request("/assets/", { method: "POST", body: JSON.stringify(data) }),

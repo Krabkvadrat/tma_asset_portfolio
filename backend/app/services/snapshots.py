@@ -32,6 +32,14 @@ def _resolve_rate(
     return 1.0
 
 
+def _snapshot_value(snapshot: PortfolioSnapshot, types: set[str] | None) -> float:
+    if types is None:
+        return float(snapshot.total_value)
+    return sum(
+        float(item["value"]) for item in snapshot.breakdown if item.get("type") in types
+    )
+
+
 async def _load_rates(session: AsyncSession) -> dict[tuple[str, str], float]:
     result = await session.execute(select(ExchangeRate))
     return {(r.base, r.quote): float(r.rate) for r in result.scalars().all()}
@@ -142,9 +150,13 @@ async def ensure_today_snapshot(
 
 
 async def get_history(
-    session: AsyncSession, user_id: int, display_currency: str, days: int
+    session: AsyncSession, user_id: int, display_currency: str, days: int,
+    types: set[str] | None = None,
 ) -> list[dict]:
     """Return snapshots for the last N days.
+
+    With types, each point sums only those categories of the snapshot's
+    breakdown, and snapshots without a breakdown are skipped.
 
     If no snapshots exist in the requested currency, falls back to
     snapshots in any other currency and converts them using current rates.
@@ -159,11 +171,13 @@ async def get_history(
         ))
         .order_by(PortfolioSnapshot.date.asc())
     )
-    snapshots = result.scalars().all()
+    snapshots = [
+        s for s in result.scalars().all() if types is None or s.breakdown is not None
+    ]
 
     if snapshots:
         return [
-            {"date": s.date.isoformat(), "value": float(s.total_value)}
+            {"date": s.date.isoformat(), "value": _snapshot_value(s, types)}
             for s in snapshots
         ]
 
@@ -175,7 +189,9 @@ async def get_history(
         ))
         .order_by(PortfolioSnapshot.date.asc())
     )
-    fallback = result.scalars().all()
+    fallback = [
+        s for s in result.scalars().all() if types is None or s.breakdown is not None
+    ]
     if not fallback:
         return []
 
@@ -184,6 +200,6 @@ async def get_history(
     rate = _resolve_rate(rates, source_currency, display_currency)
 
     return [
-        {"date": s.date.isoformat(), "value": float(s.total_value) * rate}
+        {"date": s.date.isoformat(), "value": _snapshot_value(s, types) * rate}
         for s in fallback
     ]
