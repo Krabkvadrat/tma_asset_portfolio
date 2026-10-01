@@ -42,6 +42,7 @@ async def get_portfolio(
 @router.get("/history", response_model=list[PortfolioHistoryPoint])
 async def get_portfolio_history(
     period: str = Query(default="30d"),
+    scope: str = Query(default="all"),
     user_id: int = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -52,5 +53,5 @@ async def get_portfolio_history(
     await ensure_today_snapshot(db, user_id, display_currency)
 
     days = PERIOD_DAYS.get(period, 30)
-    points = await get_history(db, user_id, display_currency, days)
+    points = await get_history(db, user_id, display_currency, days, liquid_only=scope == "liquid")
     return [PortfolioHistoryPoint(**p) for p in points]

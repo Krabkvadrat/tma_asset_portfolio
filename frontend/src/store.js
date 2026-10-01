@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { api } from "./api";
+import { ALL_ASSET_TYPES } from "./constants";
 
 function todayStr() {
   return new Date().toISOString().split("T")[0];
@@ -11,6 +12,7 @@ export const useStore = create((set, get) => ({
   currencies: ["EUR", "USD", "RUB", "RSD"],
   banks: { deposits: ["Tinkoff", "Sber"], bank_accounts: ["Tinkoff", "Sber", "Alpha"] },
   displayCurrency: "EUR",
+  assetScope: "all", // "all" | "liquid"
 
   // Data
   assets: [],
@@ -34,6 +36,7 @@ export const useStore = create((set, get) => ({
         currencies: map.currencies || get().currencies,
         banks: map.banks || get().banks,
         displayCurrency: map.display_currency || get().displayCurrency,
+        assetScope: map.asset_scope || get().assetScope,
       });
     } catch {
       // use defaults
@@ -77,7 +80,7 @@ export const useStore = create((set, get) => ({
 
   loadChartData: async (period) => {
     try {
-      const chartData = await api.getPortfolioHistory(period || get().period);
+      const chartData = await api.getPortfolioHistory(period || get().period, get().assetScope);
       set({ chartData });
     } catch {
       // keep existing
@@ -136,6 +139,20 @@ export const useStore = create((set, get) => ({
   setEnabledTypes: async (types) => {
     set({ enabledTypes: types });
     await get().updateSetting("enabled_types", types);
+  },
+
+  setAssetScope: async (scope) => {
+    set({ assetScope: scope });
+    get().loadChartData();
+    await get().updateSetting("asset_scope", scope);
+  },
+
+  // Enabled types narrowed to the current All / Liquid scope.
+  visibleTypes: () => {
+    const { enabledTypes, assetScope } = get();
+    return ALL_ASSET_TYPES.filter(
+      (t) => enabledTypes.includes(t.key) && (assetScope === "all" || t.liquid),
+    );
   },
 
   setCurrencies: async (currencies) => {

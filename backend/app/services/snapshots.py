@@ -19,6 +19,9 @@ ASSET_TYPE_META = {
     "real_estate": {"label": "Real Estate", "icon": "🏠", "color": "#06B6D4"},
 }
 
+# Must match the `liquid` flags in frontend/src/constants.js.
+LIQUID_TYPES = {"deposits", "bank_accounts", "cash", "stocks_bonds"}
+
 
 def _resolve_rate(
     rates: dict[tuple[str, str], float], base: str, quote: str
@@ -30,6 +33,16 @@ def _resolve_rate(
     if (quote, base) in rates and rates[(quote, base)] != 0:
         return 1.0 / rates[(quote, base)]
     return 1.0
+
+
+def _snapshot_value(snapshot: PortfolioSnapshot, liquid_only: bool) -> float:
+    if not liquid_only:
+        return float(snapshot.total_value)
+    return sum(
+        float(item["value"])
+        for item in snapshot.breakdown or []
+        if item.get("type") in LIQUID_TYPES
+    )
 
 
 async def _load_rates(session: AsyncSession) -> dict[tuple[str, str], float]:
@@ -142,9 +155,13 @@ async def ensure_today_snapshot(
 
 
 async def get_history(
-    session: AsyncSession, user_id: int, display_currency: str, days: int
+    session: AsyncSession, user_id: int, display_currency: str, days: int,
+    liquid_only: bool = False,
 ) -> list[dict]:
     """Return snapshots for the last N days.
+
+    With liquid_only, each point sums only the liquid categories of the
+    snapshot's breakdown.
 
     If no snapshots exist in the requested currency, falls back to
     snapshots in any other currency and converts them using current rates.
@@ -163,7 +180,7 @@ async def get_history(
 
     if snapshots:
         return [
-            {"date": s.date.isoformat(), "value": float(s.total_value)}
+            {"date": s.date.isoformat(), "value": _snapshot_value(s, liquid_only)}
             for s in snapshots
         ]
 
@@ -184,6 +201,6 @@ async def get_history(
     rate = _resolve_rate(rates, source_currency, display_currency)
 
     return [
-        {"date": s.date.isoformat(), "value": float(s.total_value) * rate}
+        {"date": s.date.isoformat(), "value": _snapshot_value(s, liquid_only) * rate}
         for s in fallback
     ]

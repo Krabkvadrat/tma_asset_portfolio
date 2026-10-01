@@ -3,13 +3,14 @@ import { useStore } from "../store";
 import { CURRENCY_SYMBOLS, CRYPTO_CURRENCIES, ALL_ASSET_TYPES } from "../constants";
 import { formLabelSt, inputSt, submitBtnSt } from "../styles";
 import Modal from "../components/Modal";
+import ScopeToggle from "../components/ScopeToggle";
 
 const MASK = "•••••";
 
 export default function Assets() {
   const {
-    displayCurrency, enabledTypes, currencies, banks, assets,
-    toDisplay, updateAsset, deleteAsset, privateMode,
+    displayCurrency, currencies, banks, assets,
+    toDisplay, updateAsset, deleteAsset, privateMode, visibleTypes,
   } = useStore();
   const hide = privateMode;
 
@@ -18,7 +19,7 @@ export default function Assets() {
   const [showOriginal, setShowOriginal] = useState(false);
 
   const sym = CURRENCY_SYMBOLS[displayCurrency] || displayCurrency;
-  const enabledAssetTypes = ALL_ASSET_TYPES.filter((t) => enabledTypes.includes(t.key));
+  const enabledAssetTypes = visibleTypes();
 
   const assetsByType = {};
   assets.forEach((a) => {
@@ -27,7 +28,7 @@ export default function Assets() {
   });
 
   const totalValue = assets
-    .filter((a) => enabledTypes.includes(a.type))
+    .filter((a) => enabledAssetTypes.some((t) => t.key === a.type))
     .reduce((s, a) => s + toDisplay(a.amount, a.currency), 0);
 
   const handleSaveAsset = async () => {
@@ -105,6 +106,7 @@ export default function Assets() {
       )}
 
       <div style={{ textAlign: "center", padding: "8px 0 16px" }}>
+        <ScopeToggle />
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 4 }}>
           <div style={{ fontSize: 11, color: "#636366", textTransform: "uppercase", letterSpacing: 1.2, fontWeight: 600 }}>Total Assets</div>
           <button onClick={() => useStore.setState({ privateMode: !privateMode })} style={{
