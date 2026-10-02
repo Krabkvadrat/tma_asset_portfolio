@@ -17,6 +17,7 @@ ASSET_TYPE_META = {
     "crypto": {"label": "Crypto", "icon": "₿", "color": "#EC4899"},
     "stocks_bonds": {"label": "Stocks/Bonds", "icon": "📈", "color": "#F59E0B"},
     "real_estate": {"label": "Real Estate", "icon": "🏠", "color": "#06B6D4"},
+    "car": {"label": "Car", "icon": "🚗", "color": "#8B5CF6"},
     "debts": {"label": "Debts", "icon": "🤝", "color": "#84CC16"},
 }
 

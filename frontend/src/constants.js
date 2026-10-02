@@ -9,6 +9,7 @@ export const ALL_ASSET_TYPES = [
   { key: "crypto", label: "Crypto", icon: "₿", color: "#EC4899" },
   { key: "stocks_bonds", label: "Stocks/Bonds", icon: "📈", color: "#F59E0B", liquid: true },
   { key: "real_estate", label: "Real Estate", icon: "🏠", color: "#06B6D4", placeholder: "e.g. Belgrade Apartment" },
+  { key: "car", label: "Car", icon: "🚗", color: "#8B5CF6", placeholder: "e.g. Toyota Corolla" },
   { key: "debts", label: "Debts", icon: "🤝", color: "#84CC16", liquid: true, nameLabel: "Who owes you", placeholder: "e.g. Ivan" },
 ];
 
