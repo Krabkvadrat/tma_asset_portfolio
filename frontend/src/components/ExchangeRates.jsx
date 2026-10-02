@@ -84,12 +84,25 @@ export default function ExchangeRates() {
         {rateCurrencies.map((c) => {
           const rate = rateFor(c);
           const unit = rate === null ? 1 : unitFor(rate);
+          // Fiat also gets the inverse quote; crypto pairs stay one-way.
+          const showInverse = rate !== null && rate !== 0
+            && !CRYPTO_CURRENCIES.includes(c) && !CRYPTO_CURRENCIES.includes(displayCurrency);
+          const invUnit = showInverse ? unitFor(1 / rate) : 1;
           return (
             <div key={c} style={rowSt}>
               <span style={{ fontWeight: 600 }}>{c}</span>
               {rate === null
                 ? <span style={warnSt}>⚠ no rate</span>
-                : <span>{formatRate(unit)} {c} = {formatRate(rate * unit)} {sym}</span>}
+                : (
+                  <div style={{ textAlign: "right" }}>
+                    {formatRate(unit)} {c} = {formatRate(rate * unit)} {sym}
+                    {showInverse && (
+                      <div style={{ fontSize: 11, color: "#636366", marginTop: 2 }}>
+                        {formatRate(invUnit)} {sym} = {formatRate(invUnit / rate)} {c}
+                      </div>
+                    )}
+                  </div>
+                )}
             </div>
           );
         })}
