@@ -1,6 +1,7 @@
 import { useStore } from "../store";
 import { CURRENCY_SYMBOLS, CRYPTO_CURRENCIES, ALL_ASSET_TYPES } from "../constants";
 import { S } from "../styles";
+import { formatNumber } from "../format";
 
 const MASK = "•••••";
 
@@ -44,7 +45,7 @@ export default function History() {
               {hide ? MASK : `${tx.action === "add" ? "+" : "−"}${
                 CRYPTO_CURRENCIES.includes(tx.currency)
                   ? `${tx.amount} ${tx.currency}`
-                  : `${CURRENCY_SYMBOLS[tx.currency] || tx.currency}${tx.amount.toLocaleString()}`
+                  : `${CURRENCY_SYMBOLS[tx.currency] || tx.currency}${formatNumber(tx.amount)}`
               }`}
             </div>
           </div>

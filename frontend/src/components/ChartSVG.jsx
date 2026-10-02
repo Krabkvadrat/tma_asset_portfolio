@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { formatNumber } from "../format";
 
 function formatDate(d) {
   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -75,7 +76,7 @@ export default function ChartSVG({ data, width = 340, height = 160, currencySymb
           borderRadius: 8, padding: "5px 10px", pointerEvents: "none", zIndex: 5, whiteSpace: "nowrap",
         }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: "#F5F5F7" }}>
-            {currencySymbol}{Math.round(hD.value).toLocaleString()}
+            {currencySymbol}{formatNumber(Math.round(hD.value))}
           </div>
           <div style={{ fontSize: 10, color: "#A1A1A6", textAlign: "center" }}>{formatDate(hD.date)}</div>
         </div>

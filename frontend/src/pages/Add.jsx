@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useStore } from "../store";
 import { CURRENCY_SYMBOLS, CRYPTO_CURRENCIES, ALL_ASSET_TYPES } from "../constants";
 import { S, formLabelSt, inputSt, submitBtnSt } from "../styles";
-import { formatAmountInput, parseAmountInput } from "../amountInput";
+import { formatNumber, parseAmountInput } from "../format";
+import AmountInput from "../components/AmountInput";
 
 function todayStr() {
   return new Date().toISOString().split("T")[0];
@@ -143,7 +144,7 @@ export default function Add() {
                 {assetsForType.map((a) => {
                   const cSym = CURRENCY_SYMBOLS[a.currency] || a.currency + " ";
                   const display = CRYPTO_CURRENCIES.includes(a.currency)
-                    ? `${a.amount} ${a.currency}` : `${cSym}${a.amount.toLocaleString()}`;
+                    ? `${a.amount} ${a.currency}` : `${cSym}${formatNumber(a.amount)}`;
                   return <option key={a.id} value={a.id}>{a.name} ({display})</option>;
                 })}
               </select>
@@ -193,8 +194,8 @@ export default function Add() {
       )}
 
       <label style={{ ...formLabelSt, marginTop: 14 }}>Amount</label>
-      <input style={inputSt} placeholder="0.00" inputMode="decimal" value={form.amount}
-        onChange={(e) => { setForm((f) => ({ ...f, amount: formatAmountInput(e.target.value) })); setError(null); }} />
+      <AmountInput style={inputSt} placeholder="0.00" value={form.amount}
+        onChange={(amount) => { setForm((f) => ({ ...f, amount })); setError(null); }} />
 
       <label style={{ ...formLabelSt, marginTop: 14 }}>Date</label>
       <input style={{ ...inputSt, fontSize: 14 }} type="date" value={form.date}
