@@ -58,7 +58,37 @@ For multi-step tasks, state a brief plan:
 ```
  
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
-## 5. Independent Review
+
+## 5. Tests Are Part of Every Change
+
+**Functionality you write ships with tests that cover it. No tests, not done.**
+
+- Backend tests live in `backend/tests/` (pytest). Run them before every push:
+  `cd backend && pip install -r requirements-dev.txt && python -m pytest`.
+  CI runs them on every PR against Postgres, and a red suite blocks the deploy.
+- New or changed behavior → add or update tests that fail without your change
+  (endpoints: happy path, error codes, and that one user can't reach another's data).
+- Bug fix → first a test that reproduces it, then the fix.
+- Never delete, skip, weaken or `xfail` an existing test to get green. If a test is
+  truly wrong, say why in the PR description.
+- If something genuinely can't be tested automatically, say so explicitly in the PR.
+
+### Never lose the production database
+
+`backend/tests/test_db_safety.py` guards prod data. Treat its failures as blockers:
+
+- Data lives in the `postgres_data` docker volume. Never rename/unmount it, and never
+  add `down -v`, `docker volume rm/prune`, `system prune --volumes` or similar to any
+  script or workflow.
+- The app must never contain `drop_all`, `DROP TABLE/DATABASE`, or `TRUNCATE`.
+- The schema is created by `create_all`, which **does not alter existing tables**.
+  Changing or removing a column of an existing table needs a data-preserving migration
+  that is applied on deploy — ask the user before doing this. New tables are safe.
+  After handling it, update the snapshot: `UPDATE_SCHEMA_SNAPSHOT=1 python -m pytest tests/test_db_safety.py`.
+- Never point the tests at a real database: they wipe every table. The suite refuses
+  any Postgres database whose name lacks `test`; don't work around that.
+
+## 6. Independent Review
 
 **Every code change gets reviewed by an independent agent before it ships.**
 

@@ -47,6 +47,23 @@ npm run dev
 
 The app will be available at http://localhost:3000 with API proxied to the backend.
 
+### Tests
+
+```bash
+cd backend
+pip install -r requirements-dev.txt
+python -m pytest
+```
+
+By default the tests use a throwaway SQLite file. To run them on Postgres, set
+`DATABASE_URL` and `DATABASE_URL_SYNC` to a database whose name contains `test`
+(the suite wipes all tables and refuses any other database).
+`tests/test_db_safety.py` guards production data: the db volume, destructive
+commands in deploy scripts, and schema changes that `create_all` cannot apply.
+
+CI (`.github/workflows/ci.yml`) runs the tests on Postgres and builds the frontend
+on every PR; the deploy workflow runs it too and does not deploy on failure.
+
 ### Production (Docker Compose)
 
 ```bash

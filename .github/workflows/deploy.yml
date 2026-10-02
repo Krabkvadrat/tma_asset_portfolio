@@ -13,7 +13,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # A red test suite (including the database-safety tests) blocks the deploy.
+  tests:
+    uses: ./.github/workflows/ci.yml
+
   deploy:
+    needs: tests
     runs-on: ubuntu-latest
     steps:
       - name: Deploy over SSH

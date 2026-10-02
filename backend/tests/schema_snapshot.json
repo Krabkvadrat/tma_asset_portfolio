@@ -1,0 +1,294 @@
+{
+  "assets": {
+    "columns": {
+      "amount": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": false,
+        "type": "NUMERIC(20, 8)"
+      },
+      "bank": {
+        "foreign_key": [],
+        "nullable": true,
+        "primary_key": false,
+        "type": "VARCHAR(255)"
+      },
+      "created_at": {
+        "foreign_key": [],
+        "nullable": true,
+        "primary_key": false,
+        "type": "DATETIME"
+      },
+      "currency": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR(10)"
+      },
+      "id": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      "name": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR(255)"
+      },
+      "note": {
+        "foreign_key": [],
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      "rate": {
+        "foreign_key": [],
+        "nullable": true,
+        "primary_key": false,
+        "type": "VARCHAR(20)"
+      },
+      "type": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR(30)"
+      },
+      "updated_at": {
+        "foreign_key": [],
+        "nullable": true,
+        "primary_key": false,
+        "type": "DATETIME"
+      },
+      "user_id": {
+        "foreign_key": [
+          "users.user_id ON DELETE CASCADE"
+        ],
+        "nullable": false,
+        "primary_key": false,
+        "type": "BIGINT"
+      }
+    },
+    "unique": []
+  },
+  "exchange_rates": {
+    "columns": {
+      "base": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR(10)"
+      },
+      "fetched_at": {
+        "foreign_key": [],
+        "nullable": true,
+        "primary_key": false,
+        "type": "DATETIME"
+      },
+      "id": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      "quote": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR(10)"
+      },
+      "rate": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": false,
+        "type": "NUMERIC(20, 8)"
+      }
+    },
+    "unique": [
+      "uq_exchange_rate(base, quote)"
+    ]
+  },
+  "portfolio_snapshots": {
+    "columns": {
+      "breakdown": {
+        "foreign_key": [],
+        "nullable": true,
+        "primary_key": false,
+        "type": "JSON"
+      },
+      "created_at": {
+        "foreign_key": [],
+        "nullable": true,
+        "primary_key": false,
+        "type": "DATETIME"
+      },
+      "date": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": false,
+        "type": "DATE"
+      },
+      "display_currency": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR(10)"
+      },
+      "id": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      "total_value": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": false,
+        "type": "NUMERIC(20, 8)"
+      },
+      "user_id": {
+        "foreign_key": [
+          "users.user_id ON DELETE CASCADE"
+        ],
+        "nullable": false,
+        "primary_key": false,
+        "type": "BIGINT"
+      }
+    },
+    "unique": [
+      "uq_snapshot_per_day(user_id, date, display_currency)"
+    ]
+  },
+  "transactions": {
+    "columns": {
+      "action": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR(10)"
+      },
+      "amount": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": false,
+        "type": "NUMERIC(20, 8)"
+      },
+      "asset_id": {
+        "foreign_key": [
+          "assets.id ON DELETE SET NULL"
+        ],
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      "bank": {
+        "foreign_key": [],
+        "nullable": true,
+        "primary_key": false,
+        "type": "VARCHAR(255)"
+      },
+      "created_at": {
+        "foreign_key": [],
+        "nullable": true,
+        "primary_key": false,
+        "type": "DATETIME"
+      },
+      "currency": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR(10)"
+      },
+      "date": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": false,
+        "type": "DATE"
+      },
+      "id": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      "note": {
+        "foreign_key": [],
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      "type": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR(30)"
+      },
+      "user_id": {
+        "foreign_key": [
+          "users.user_id ON DELETE CASCADE"
+        ],
+        "nullable": false,
+        "primary_key": false,
+        "type": "BIGINT"
+      }
+    },
+    "unique": []
+  },
+  "user_settings": {
+    "columns": {
+      "id": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      "key": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR(50)"
+      },
+      "user_id": {
+        "foreign_key": [
+          "users.user_id ON DELETE CASCADE"
+        ],
+        "nullable": false,
+        "primary_key": false,
+        "type": "BIGINT"
+      },
+      "value": {
+        "foreign_key": [],
+        "nullable": true,
+        "primary_key": false,
+        "type": "JSON"
+      }
+    },
+    "unique": [
+      "uq_user_setting(user_id, key)"
+    ]
+  },
+  "users": {
+    "columns": {
+      "created_at": {
+        "foreign_key": [],
+        "nullable": true,
+        "primary_key": false,
+        "type": "DATETIME"
+      },
+      "display_currency": {
+        "foreign_key": [],
+        "nullable": true,
+        "primary_key": false,
+        "type": "VARCHAR(10)"
+      },
+      "user_id": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": true,
+        "type": "BIGINT"
+      }
+    },
+    "unique": []
+  }
+}

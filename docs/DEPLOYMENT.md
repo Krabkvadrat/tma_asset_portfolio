@@ -5,7 +5,10 @@ The app auto-deploys to the Raspberry Pi on every push/merge to `main`.
 ## How it works
 
 1. You merge a PR into `main` (or push directly).
-2. GitHub Actions (`.github/workflows/deploy.yml`) connects to the Pi over SSH.
+2. GitHub Actions (`.github/workflows/deploy.yml`) first runs the CI workflow
+   (backend tests on Postgres, including the database-safety tests, and the
+   frontend build). If it fails, nothing is deployed. Otherwise it connects to
+   the Pi over SSH.
 3. On the Pi it remembers the current commit, then updates to latest `main`:
    ```bash
    cd $DEPLOY_PATH
