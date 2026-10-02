@@ -67,3 +67,4 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - Fix real findings (or explain why not), re-verify, and only then create a PR or merge.
 - Mention the review and its outcome in the PR description.
 - Do this without being asked; the user should not have to request it each time.
+- Once the review is done and every finding is addressed, open the PR without asking the user for permission first.
