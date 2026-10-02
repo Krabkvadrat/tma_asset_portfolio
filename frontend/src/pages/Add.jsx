@@ -49,7 +49,8 @@ export default function Add() {
     setError(null);
     setSuccess(null);
 
-    if (!form.amount || parseAmountInput(form.amount) <= 0) {
+    const amount = parseAmountInput(form.amount);
+    if (!(amount > 0)) {
       setError("Enter a valid amount");
       return;
     }
@@ -69,7 +70,7 @@ export default function Add() {
         type: form.type,
         action: mode,
         name: form.name || form.type,
-        amount: parseAmountInput(form.amount),
+        amount,
         currency: form.currency,
         date: form.date,
         note: form.note || (mode === "add" ? "Added funds" : "Withdrew funds"),

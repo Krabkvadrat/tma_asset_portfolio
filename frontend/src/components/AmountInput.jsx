@@ -30,6 +30,12 @@ export default function AmountInput({ value, onChange, ...props }) {
     <input {...props} ref={ref} inputMode="decimal" value={formatted}
       onChange={(e) => {
         const { value: raw, selectionStart } = e.target;
+        // Ignore a second decimal point instead of moving the existing one.
+        if ((raw.match(/[.,]/g) || []).length > 1 && /[.,]/.test(formatted)) {
+          caret.current = significant(formatAmountInput(raw.slice(0, selectionStart - 1)));
+          rerender();
+          return;
+        }
         caret.current = significant(formatAmountInput(raw.slice(0, selectionStart ?? raw.length)));
         onChange(formatAmountInput(raw));
         rerender();
