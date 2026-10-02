@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useStore } from "../store";
 import { CURRENCY_SYMBOLS, CRYPTO_CURRENCIES, ALL_ASSET_TYPES } from "../constants";
 import { formLabelSt, inputSt, submitBtnSt } from "../styles";
+import { formatAmountInput, parseAmountInput } from "../amountInput";
 import Modal from "../components/Modal";
 import ScopeToggle from "../components/ScopeToggle";
 
@@ -36,7 +37,7 @@ export default function Assets() {
     const { asset } = editModal;
     await updateAsset(asset.id, {
       name: asset.name,
-      amount: parseFloat(asset.amount) || 0,
+      amount: parseAmountInput(asset.amount) || 0,
       currency: asset.currency,
       bank: asset.bank || null,
       note: asset.note || null,
@@ -59,8 +60,8 @@ export default function Assets() {
           <input value={editModal.asset.name}
             onChange={(e) => setEditModal((m) => ({ ...m, asset: { ...m.asset, name: e.target.value } }))} style={inputSt} />
           <label style={{ ...formLabelSt, marginTop: 14 }}>Amount</label>
-          <input type="number" value={editModal.asset.amount}
-            onChange={(e) => setEditModal((m) => ({ ...m, asset: { ...m.asset, amount: e.target.value } }))} style={inputSt} />
+          <input inputMode="decimal" value={formatAmountInput(editModal.asset.amount)}
+            onChange={(e) => setEditModal((m) => ({ ...m, asset: { ...m.asset, amount: formatAmountInput(e.target.value) } }))} style={inputSt} />
           <label style={{ ...formLabelSt, marginTop: 14 }}>Currency</label>
           <div style={{ position: "relative" }}>
             <select value={editModal.asset.currency}

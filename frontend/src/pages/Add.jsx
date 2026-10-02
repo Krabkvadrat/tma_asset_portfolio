@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useStore } from "../store";
 import { CURRENCY_SYMBOLS, CRYPTO_CURRENCIES, ALL_ASSET_TYPES } from "../constants";
 import { S, formLabelSt, inputSt, submitBtnSt } from "../styles";
+import { formatAmountInput, parseAmountInput } from "../amountInput";
 
 function todayStr() {
   return new Date().toISOString().split("T")[0];
@@ -47,7 +48,7 @@ export default function Add() {
     setError(null);
     setSuccess(null);
 
-    if (!form.amount || parseFloat(form.amount) <= 0) {
+    if (!form.amount || parseAmountInput(form.amount) <= 0) {
       setError("Enter a valid amount");
       return;
     }
@@ -67,7 +68,7 @@ export default function Add() {
         type: form.type,
         action: mode,
         name: form.name || form.type,
-        amount: parseFloat(form.amount),
+        amount: parseAmountInput(form.amount),
         currency: form.currency,
         date: form.date,
         note: form.note || (mode === "add" ? "Added funds" : "Withdrew funds"),
@@ -192,8 +193,8 @@ export default function Add() {
       )}
 
       <label style={{ ...formLabelSt, marginTop: 14 }}>Amount</label>
-      <input style={inputSt} placeholder="0.00" type="number" value={form.amount}
-        onChange={(e) => { setForm((f) => ({ ...f, amount: e.target.value })); setError(null); }} />
+      <input style={inputSt} placeholder="0.00" inputMode="decimal" value={form.amount}
+        onChange={(e) => { setForm((f) => ({ ...f, amount: formatAmountInput(e.target.value) })); setError(null); }} />
 
       <label style={{ ...formLabelSt, marginTop: 14 }}>Date</label>
       <input style={{ ...inputSt, fontSize: 14 }} type="date" value={form.date}
