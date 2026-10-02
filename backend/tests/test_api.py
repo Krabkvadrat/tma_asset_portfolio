@@ -102,6 +102,7 @@ def test_settings_defaults_and_update(client):
     settings = {s["key"]: s["value"] for s in client.get("/api/settings/", headers=auth()).json()}
     assert settings["display_currency"] == "EUR"
     assert "debts" in settings["enabled_types"]
+    assert "car" in settings["enabled_types"]
 
     client.put("/api/settings/", json={"key": "display_currency", "value": "USD"}, headers=auth())
     client.put("/api/settings/", json={"key": "include_debts", "value": False}, headers=auth())
@@ -124,6 +125,13 @@ def test_portfolio_converts_to_display_currency(client):
     assert p["total_value"] == pytest.approx(199)
     by_type = {b["type"]: b["value"] for b in p["breakdown"]}
     assert by_type == pytest.approx({"cash": 100, "bank_accounts": 99})
+
+
+def test_portfolio_labels_car(client):
+    add_txn(client, "Corolla", 15000, type_="car")
+
+    car = {b["type"]: b for b in client.get("/api/portfolio/", headers=auth()).json()["breakdown"]}["car"]
+    assert (car["value"], car["label"], car["icon"]) == (15000, "Car", "🚗")
 
 
 def test_portfolio_uses_inverse_rate(client):
