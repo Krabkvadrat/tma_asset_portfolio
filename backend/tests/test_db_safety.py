@@ -35,7 +35,13 @@ PG_DATA = "/var/lib/postgresql/data"
 def test_db_data_lives_in_named_volume(name):
     compose = yaml.safe_load((REPO / name).read_text())
     db = compose["services"]["db"]
-    assert "postgres_data:" + PG_DATA in db.get("volumes", []), (
+    mounts = set()
+    for v in db.get("volumes", []):
+        if isinstance(v, dict):
+            mounts.add((v.get("source"), v.get("target")))
+        else:
+            mounts.add(tuple(v.split(":")[:2]))
+    assert ("postgres_data", PG_DATA) in mounts, (
         f"{name}: the db service must keep its data in the postgres_data volume "
         f"mounted at {PG_DATA}; without it every recreate starts an empty database."
     )
@@ -56,9 +62,16 @@ DESTRUCTIVE_SHELL = [
 ]
 
 
+def _logical_lines(text: str) -> list[str]:
+    # Join backslash continuations so a flag on the next line is still seen.
+    # (Line numbers in failures then count logical lines.)
+    return re.sub(r"\\\n\s*", " ", text).splitlines()
+
+
 def _shell_files() -> list[Path]:
     files = [REPO / "deploy.sh", *(REPO / "scripts").glob("*.sh")]
-    files += (REPO / ".github" / "workflows").glob("*.yml")
+    files += (REPO / ".github" / "workflows").glob("*.y*ml")
+    files += [REPO / "Makefile"]
     return [f for f in files if f.is_file()]
 
 
@@ -66,6 +79,7 @@ def _shell_files() -> list[Path]:
     "sample",
     [
         "docker compose -f x.yml down -v",
+        "docker compose -f x.yml down \\\n    --volumes",
         "compose down --volumes",
         "docker-compose down --remove-orphans -v",
         "docker volume rm tma_postgres_data",
@@ -77,14 +91,14 @@ def _shell_files() -> list[Path]:
 )
 def test_destructive_patterns_are_detected(sample):
     # Keeps the scan below honest: each pattern must actually match.
-    assert any(p.search(sample) for p, _ in DESTRUCTIVE_SHELL)
+    assert any(p.search(line) for line in _logical_lines(sample) for p, _ in DESTRUCTIVE_SHELL)
 
 
 def test_deploy_scripts_never_destroy_db_volume():
     assert _shell_files(), "no deploy scripts found — did they move?"
     hits = []
     for path in _shell_files():
-        for lineno, line in enumerate(path.read_text().splitlines(), 1):
+        for lineno, line in enumerate(_logical_lines(path.read_text()), 1):
             if line.lstrip().startswith("#"):
                 continue
             for pattern, what in DESTRUCTIVE_SHELL:
@@ -96,7 +110,9 @@ def test_deploy_scripts_never_destroy_db_volume():
 # --- Destructive SQL in the app ---------------------------------------------
 
 DESTRUCTIVE_SQL = re.compile(
-    r"\bdrop_all\b|\bDROP\s+(TABLE|DATABASE|SCHEMA)\b|\bTRUNCATE\b", re.IGNORECASE
+    r"\bdrop_all\b|\bDROP\s+(TABLE|DATABASE|SCHEMA)\b|\bTRUNCATE\b"
+    r"|\bop\.drop_(table|column)\b",  # Alembic migrations
+    re.IGNORECASE,
 )
 
 

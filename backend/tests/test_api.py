@@ -1,5 +1,3 @@
-from datetime import datetime
-
 import pytest
 
 from app.models import ExchangeRate
@@ -138,11 +136,12 @@ def test_history_has_today_and_filters_by_type(client):
     add_txn(client, "Wallet", 100)
     add_txn(client, "Coins", 20, type_="crypto")
 
-    [point] = client.get("/api/portfolio/history?period=7d", headers=auth()).json()
-    assert point == {"date": datetime.utcnow().date().isoformat(), "value": 120}
+    # Look at the latest point only: a run across UTC midnight yields two.
+    points = client.get("/api/portfolio/history?period=7d", headers=auth()).json()
+    assert points[-1]["value"] == 120
 
-    [point] = client.get("/api/portfolio/history?period=7d&types=crypto", headers=auth()).json()
-    assert point["value"] == 20
+    points = client.get("/api/portfolio/history?period=7d&types=crypto", headers=auth()).json()
+    assert points[-1]["value"] == 20
 
 
 def test_empty_portfolio(client):

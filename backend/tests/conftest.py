@@ -6,11 +6,12 @@ disposable Postgres via DATABASE_URL / DATABASE_URL_SYNC. Anything that does
 not look like a test database is refused before the app is even imported.
 """
 import os
+import re
 import tempfile
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
 if "DATABASE_URL" not in os.environ:
@@ -22,6 +23,9 @@ os.environ["ALLOWED_USER_IDS"] = "[]"
 os.environ["ALLOWED_ORIGINS"] = "*"
 
 
+TEST_DB_NAME = re.compile(r"(^|[_-])tests?([_-]|$)")
+
+
 def _assert_test_database(var: str) -> None:
     raw = os.environ.get(var)
     if not raw:
@@ -29,10 +33,13 @@ def _assert_test_database(var: str) -> None:
     url = make_url(raw)
     if url.get_backend_name() == "sqlite":
         return
-    if "test" not in (url.database or ""):
+    # Drivers let ?dbname= / ?database= override the path, so forbid them.
+    if {"dbname", "database"} & {k.lower() for k in url.query}:
+        pytest.exit(f"Refusing to run: {var} overrides the database name in its query", returncode=2)
+    if not TEST_DB_NAME.search(url.database or ""):
         pytest.exit(
             f"Refusing to run: {var} points at database {url.database!r}. "
-            "The tests delete all rows; use a database whose name contains 'test'.",
+            "The tests delete all rows; use a database named like 'portfolio_test'.",
             returncode=2,
         )
 
@@ -48,6 +55,13 @@ from app.database import Base, engine  # noqa: E402
 from app.routers import rates as rates_router  # noqa: E402
 
 sync_engine = create_engine(os.environ["DATABASE_URL_SYNC"])
+
+# Belt and braces: ask the server which database we really reached.
+if sync_engine.dialect.name == "postgresql":
+    with sync_engine.connect() as _conn:
+        _actual = _conn.execute(text("SELECT current_database()")).scalar()
+    if not TEST_DB_NAME.search(_actual):
+        pytest.exit(f"Refusing to run: connected to database {_actual!r}", returncode=2)
 
 
 def auth(user_id: int = 1) -> dict[str, str]:
