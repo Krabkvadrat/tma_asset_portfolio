@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useStore } from "../store";
 import { CURRENCY_SYMBOLS, ALL_ASSET_TYPES } from "../constants";
 import { S, formLabelSt, inputSt, submitBtnSt } from "../styles";
+import ExchangeRates from "../components/ExchangeRates";
 
 export default function Settings() {
   const {
@@ -40,6 +41,8 @@ export default function Settings() {
             style={{ ...submitBtnSt, background: "#2A9EF4", padding: "10px 16px", fontSize: 13 }}>Add</button>
         </div>
       </div>
+
+      <ExchangeRates />
 
       <div style={{ ...S.secTitle, marginTop: 24 }}>Asset Types</div>
       <div style={S.settingsCard}>

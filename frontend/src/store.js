@@ -22,6 +22,7 @@ export const useStore = create((set, get) => ({
   transactions: [],
   chartData: [],
   rates: {},
+  ratesFetchedAt: null, // oldest fetched_at among cached rates
 
   // UI
   loading: false,
@@ -88,14 +89,21 @@ export const useStore = create((set, get) => ({
     try {
       const ratesArr = await api.getRates();
       const rates = {};
+      let ratesFetchedAt = null;
       ratesArr.forEach((r) => {
         if (!rates[r.base]) rates[r.base] = {};
         rates[r.base][r.quote] = r.rate;
+        if (!ratesFetchedAt || r.fetched_at < ratesFetchedAt) ratesFetchedAt = r.fetched_at;
       });
-      set({ rates });
+      set({ rates, ratesFetchedAt });
     } catch {
       // keep existing
     }
+  },
+
+  refreshRates: async () => {
+    await api.refreshRates();
+    await get().loadRates();
   },
 
   createAsset: async (data) => {
@@ -190,17 +198,24 @@ export const useStore = create((set, get) => ({
     }
   },
 
-  toDisplay: (amount, currency) => {
+  // Rate from `currency` to the display currency, or null when none is cached.
+  rateFor: (currency) => {
     const { displayCurrency, rates } = get();
-    if (currency === displayCurrency) return amount;
+    if (currency === displayCurrency) return 1;
     const table = rates[currency];
     if (table && table[displayCurrency] !== undefined) {
-      return amount * table[displayCurrency];
+      return table[displayCurrency];
     }
     const inverseTable = rates[displayCurrency];
     if (inverseTable && inverseTable[currency] !== undefined && inverseTable[currency] !== 0) {
-      return amount / inverseTable[currency];
+      return 1 / inverseTable[currency];
     }
-    return amount;
+    return null;
+  },
+
+  // A missing rate counts the amount 1:1.
+  toDisplay: (amount, currency) => {
+    const rate = get().rateFor(currency);
+    return rate === null ? amount : amount * rate;
   },
 }));

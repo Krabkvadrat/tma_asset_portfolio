@@ -7,6 +7,11 @@ export function formatNumber(n) {
   return n.toLocaleString("en-US").replace(/,/g, SEP);
 }
 
+// Rates: 5 significant digits, so 0.0085412 and 58 300 both stay readable.
+export function formatRate(n) {
+  return n.toLocaleString("en-US", { maximumSignificantDigits: 5 }).replace(/,/g, SEP);
+}
+
 // Input: groups the integer part of a typed amount: "210000.5" -> "210 000.5".
 export function formatAmountInput(value) {
   let str = String(value);
