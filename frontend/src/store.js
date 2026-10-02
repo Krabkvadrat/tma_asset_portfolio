@@ -11,11 +11,12 @@ function todayStr() {
 
 export const useStore = create((set, get) => ({
   // Settings
-  enabledTypes: ["deposits", "bank_accounts", "cash", "crypto", "stocks_bonds", "real_estate"],
+  enabledTypes: ["deposits", "bank_accounts", "cash", "crypto", "stocks_bonds", "real_estate", "debts"],
   currencies: ["EUR", "USD", "RUB", "RSD"],
   banks: { deposits: ["Tinkoff", "Sber"], bank_accounts: ["Tinkoff", "Sber", "Alpha"] },
   displayCurrency: "EUR",
   assetScope: "all", // "all" | "liquid"
+  includeDebts: true, // whether the Liquid view counts debts owed to the user
 
   // Data
   assets: [],
@@ -39,6 +40,7 @@ export const useStore = create((set, get) => ({
         banks: map.banks || get().banks,
         displayCurrency: map.display_currency || get().displayCurrency,
         assetScope: map.asset_scope || get().assetScope,
+        includeDebts: map.include_debts ?? get().includeDebts,
       });
     } catch {
       // use defaults
@@ -144,11 +146,17 @@ export const useStore = create((set, get) => ({
     await get().updateSetting("asset_scope", scope);
   },
 
+  setIncludeDebts: async (includeDebts) => {
+    set({ includeDebts });
+    get().loadChartData();
+    await get().updateSetting("include_debts", includeDebts);
+  },
+
   // Enabled types narrowed to the current All / Liquid scope.
   visibleTypes: () => {
-    const { enabledTypes, assetScope } = get();
+    const { enabledTypes, assetScope, includeDebts } = get();
     return ALL_ASSET_TYPES.filter(
-      (t) => enabledTypes.includes(t.key) && (assetScope === "all" || t.liquid),
+      (t) => enabledTypes.includes(t.key) && (assetScope === "all" || (t.liquid && (includeDebts || t.key !== "debts"))),
     );
   },
 
