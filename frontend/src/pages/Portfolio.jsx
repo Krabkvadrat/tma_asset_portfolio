@@ -7,6 +7,7 @@ import DonutChart from "../components/DonutChart";
 import ScopeToggle from "../components/ScopeToggle";
 import Modal from "../components/Modal";
 import { formLabelSt, inputSt, submitBtnSt } from "../styles";
+import { formatNumber } from "../format";
 
 function todayStr() {
   return new Date().toISOString().split("T")[0];
@@ -95,12 +96,12 @@ export default function Portfolio() {
           </button>
         </div>
         <div style={{ fontSize: 36, fontWeight: 800, letterSpacing: -1.5, lineHeight: 1.1 }}>
-          {hide ? `${sym}${MASK}` : `${sym}${Math.round(totalValue).toLocaleString()}`}
+          {hide ? `${sym}${MASK}` : `${sym}${formatNumber(Math.round(totalValue))}`}
         </div>
         {hasHistory ? (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 8, fontSize: 14 }}>
             <span style={{ color: isUp ? "#10B981" : "#EF4444", fontWeight: 600 }}>
-              {isUp ? "▲" : "▼"} {hide ? `${sym}${MASK}` : `${sym}${Math.abs(Math.round(absChange)).toLocaleString()}`}
+              {isUp ? "▲" : "▼"} {hide ? `${sym}${MASK}` : `${sym}${formatNumber(Math.abs(Math.round(absChange)))}`}
             </span>
             <span style={{
               background: isUp ? "#10B98122" : "#EF444422",
@@ -155,7 +156,7 @@ export default function Portfolio() {
               <div style={{ width: 8, height: 8, borderRadius: 4, background: a.color, flexShrink: 0 }} />
               <span style={{ flex: 1, color: "#A1A1A6" }}>{a.icon} {a.label}</span>
               <span style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
-                {hide ? MASK : `${sym}${Math.round(a.value).toLocaleString()}`}
+                {hide ? MASK : `${sym}${formatNumber(Math.round(a.value))}`}
               </span>
             </div>
           ))}

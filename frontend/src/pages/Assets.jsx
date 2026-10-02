@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useStore } from "../store";
 import { CURRENCY_SYMBOLS, CRYPTO_CURRENCIES, ALL_ASSET_TYPES } from "../constants";
 import { formLabelSt, inputSt, submitBtnSt } from "../styles";
+import { formatNumber, parseAmountInput } from "../format";
+import AmountInput from "../components/AmountInput";
 import Modal from "../components/Modal";
 import ScopeToggle from "../components/ScopeToggle";
 
@@ -36,7 +38,7 @@ export default function Assets() {
     const { asset } = editModal;
     await updateAsset(asset.id, {
       name: asset.name,
-      amount: parseFloat(asset.amount) || 0,
+      amount: parseAmountInput(asset.amount) || 0,
       currency: asset.currency,
       bank: asset.bank || null,
       note: asset.note || null,
@@ -59,8 +61,8 @@ export default function Assets() {
           <input value={editModal.asset.name}
             onChange={(e) => setEditModal((m) => ({ ...m, asset: { ...m.asset, name: e.target.value } }))} style={inputSt} />
           <label style={{ ...formLabelSt, marginTop: 14 }}>Amount</label>
-          <input type="number" value={editModal.asset.amount}
-            onChange={(e) => setEditModal((m) => ({ ...m, asset: { ...m.asset, amount: e.target.value } }))} style={inputSt} />
+          <AmountInput value={editModal.asset.amount}
+            onChange={(amount) => setEditModal((m) => ({ ...m, asset: { ...m.asset, amount } }))} style={inputSt} />
           <label style={{ ...formLabelSt, marginTop: 14 }}>Currency</label>
           <div style={{ position: "relative" }}>
             <select value={editModal.asset.currency}
@@ -129,7 +131,7 @@ export default function Assets() {
             </svg>
           </button>
         </div>
-        <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: -1.2 }}>{hide ? `${sym}${MASK}` : `${sym}${Math.round(totalValue).toLocaleString()}`}</div>
+        <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: -1.2 }}>{hide ? `${sym}${MASK}` : `${sym}${formatNumber(Math.round(totalValue))}`}</div>
 
         {showOriginal && (() => {
           const allItems = enabledAssetTypes.flatMap((t) => assetsByType[t.key] || []);
@@ -152,10 +154,10 @@ export default function Assets() {
                     padding: "8px 12px", textAlign: "center", minWidth: 80,
                   }}>
                     <div style={{ fontSize: 14, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
-                      {hide ? MASK : CRYPTO_CURRENCIES.includes(cur) ? `${byC[cur].original.toFixed(4)} ${cur}` : `${cSym}${byC[cur].original.toLocaleString()}`}
+                      {hide ? MASK : CRYPTO_CURRENCIES.includes(cur) ? `${byC[cur].original.toFixed(4)} ${cur}` : `${cSym}${formatNumber(byC[cur].original)}`}
                     </div>
                     <div style={{ fontSize: 10, color: "#636366", marginTop: 2 }}>
-                      {hide ? "" : `≈ ${sym}${Math.round(byC[cur].converted).toLocaleString()} · ${pct}%`}
+                      {hide ? "" : `≈ ${sym}${formatNumber(Math.round(byC[cur].converted))} · ${pct}%`}
                     </div>
                   </div>
                 );
@@ -214,13 +216,13 @@ export default function Assets() {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{hide ? `${sym}${MASK}` : `${sym}${Math.round(subtotalConverted).toLocaleString()}`}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{hide ? `${sym}${MASK}` : `${sym}${formatNumber(Math.round(subtotalConverted))}`}</div>
                   {!hide && showOriginal && isMultiCurrency && (
                     <div style={{ fontSize: 10, color: "#636366", marginTop: 1 }}>
                       {groupKeys.map((cur) => {
                         const grpTotal = currencyGroups[cur].reduce((s, a) => s + a.amount, 0);
                         const cSym = CURRENCY_SYMBOLS[cur] || cur + " ";
-                        return CRYPTO_CURRENCIES.includes(cur) ? `${grpTotal} ${cur}` : `${cSym}${grpTotal.toLocaleString()}`;
+                        return CRYPTO_CURRENCIES.includes(cur) ? `${grpTotal} ${cur}` : `${cSym}${formatNumber(grpTotal)}`;
                       }).join(" + ")}
                     </div>
                   )}
@@ -247,9 +249,9 @@ export default function Assets() {
                         </div>
                         <div style={{ textAlign: "right" }}>
                           <span style={{ fontSize: 12, fontWeight: 700, color: "#A1A1A6" }}>
-                            {hide ? MASK : CRYPTO_CURRENCIES.includes(cur) ? `${grpTotal} ${cur}` : `${cSym}${grpTotal.toLocaleString()}`}
+                            {hide ? MASK : CRYPTO_CURRENCIES.includes(cur) ? `${grpTotal} ${cur}` : `${cSym}${formatNumber(grpTotal)}`}
                           </span>
-                          {!hide && <span style={{ fontSize: 10, color: "#636366", marginLeft: 6 }}>≈ {sym}{Math.round(grpConverted).toLocaleString()}</span>}
+                          {!hide && <span style={{ fontSize: 10, color: "#636366", marginLeft: 6 }}>≈ {sym}{formatNumber(Math.round(grpConverted))}</span>}
                         </div>
                       </div>
                       {grpItems.map((a, ai) => {
@@ -269,9 +271,9 @@ export default function Assets() {
                             <div style={{ textAlign: "right", display: "flex", alignItems: "center", gap: 8 }}>
                               <div>
                                 <div style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
-                                  {hide ? MASK : CRYPTO_CURRENCIES.includes(a.currency) ? `${a.amount} ${a.currency}` : `${cSym}${a.amount.toLocaleString()}`}
+                                  {hide ? MASK : CRYPTO_CURRENCIES.includes(a.currency) ? `${a.amount} ${a.currency}` : `${cSym}${formatNumber(a.amount)}`}
                                 </div>
-                                {!hide && <div style={{ fontSize: 10, color: "#636366" }}>≈ {sym}{Math.round(toDisplay(a.amount, a.currency)).toLocaleString()}</div>}
+                                {!hide && <div style={{ fontSize: 10, color: "#636366" }}>≈ {sym}{formatNumber(Math.round(toDisplay(a.amount, a.currency)))}</div>}
                               </div>
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4A4A4E" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
                             </div>
@@ -310,15 +312,15 @@ export default function Assets() {
                           ) : showOriginal ? (
                             <>
                               <div style={{ fontSize: 14, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
-                                {CRYPTO_CURRENCIES.includes(a.currency) ? `${a.amount} ${a.currency}` : `${cSym}${a.amount.toLocaleString()}`}
+                                {CRYPTO_CURRENCIES.includes(a.currency) ? `${a.amount} ${a.currency}` : `${cSym}${formatNumber(a.amount)}`}
                               </div>
                               {a.currency !== displayCurrency && !CRYPTO_CURRENCIES.includes(a.currency) && (
-                                <div style={{ fontSize: 10, color: "#636366" }}>≈ {sym}{Math.round(toDisplay(a.amount, a.currency)).toLocaleString()}</div>
+                                <div style={{ fontSize: 10, color: "#636366" }}>≈ {sym}{formatNumber(Math.round(toDisplay(a.amount, a.currency)))}</div>
                               )}
                             </>
                           ) : (
                             <div style={{ fontSize: 14, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
-                              {sym}{Math.round(toDisplay(a.amount, a.currency)).toLocaleString()}
+                              {sym}{formatNumber(Math.round(toDisplay(a.amount, a.currency)))}
                             </div>
                           )}
                           {a.rate && <div style={{ fontSize: 11, color: type.color, fontWeight: 600 }}>{a.rate}</div>}
