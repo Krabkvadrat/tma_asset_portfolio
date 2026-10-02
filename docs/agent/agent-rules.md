@@ -58,3 +58,12 @@ For multi-step tasks, state a brief plan:
 ```
  
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+## 5. Independent Review
+
+**Every code change gets reviewed by an independent agent before it ships.**
+
+- After implementing and verifying a change, launch a separate subagent to review the diff read-only (it must not edit, commit or push).
+- Give it the intent of the change and the diff range; ask for concrete bugs with file:line, a failing input and a suggested fix.
+- Fix real findings (or explain why not), re-verify, and only then create a PR or merge.
+- Mention the review and its outcome in the PR description.
+- Do this without being asked; the user should not have to request it each time.
