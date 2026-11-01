@@ -1,9 +1,18 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from app.models import Asset, ExchangeRate, PortfolioSnapshot, Transaction
+import pytest
+
+from app.models import Asset, ExchangeRate, PortfolioSnapshot, Transaction, User
 from conftest import auth, sync_engine
 from scripts.backfill_deleted_assets import NOTE, apply, find_fixes, main
+
+
+@pytest.fixture(autouse=True)
+def users(clean_db):
+    # Postgres enforces the users foreign key on rows inserted directly.
+    with sync_engine.begin() as conn:
+        conn.execute(User.__table__.insert(), [{"user_id": 1}, {"user_id": 2}])
 
 
 def txn(user, type_, currency, action, amount, day, asset_id=None, created=None, note=None):
