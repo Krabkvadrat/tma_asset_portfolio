@@ -105,3 +105,17 @@ class ExchangeRate(Base):
     quote = Column(String(10), nullable=False)
     rate = Column(Numeric(20, 8), nullable=False)
     fetched_at = Column(DateTime, server_default=func.now())
+
+
+class HistoricalRate(Base):
+    """Daily exchange rates, cached so each past day is fetched only once.
+
+    per_eur is how many units of the currency one euro bought that day.
+    """
+    __tablename__ = "historical_rates"
+    __table_args__ = (UniqueConstraint("date", "currency", name="uq_historical_rate"),)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    date = Column(Date, nullable=False)
+    currency = Column(String(10), nullable=False)
+    per_eur = Column(Numeric(30, 12), nullable=False)

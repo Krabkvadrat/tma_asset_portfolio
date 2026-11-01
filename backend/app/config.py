@@ -9,6 +9,11 @@ class Settings(BaseSettings):
 
     FIAT_RATE_API_URL: str = "https://api.exchangerate-api.com/v4/latest"
     COINGECKO_API_URL: str = "https://api.coingecko.com/api/v3"
+    # Daily EUR-based rates for fiat and crypto, tried in order; {date} is YYYY-MM-DD.
+    HISTORICAL_RATE_URLS: list[str] = [
+        "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{date}/v1/currencies/eur.min.json",
+        "https://{date}.currency-api.pages.dev/v1/currencies/eur.min.json",
+    ]
 
     FIAT_CURRENCIES: list[str] = ["EUR", "USD", "RUB", "RSD"]
     CRYPTO_IDS: dict[str, str] = {"BTC": "bitcoin", "ETH": "ethereum", "USDT": "tether"}

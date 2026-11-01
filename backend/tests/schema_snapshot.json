@@ -109,6 +109,37 @@
       "uq_exchange_rate(base, quote)"
     ]
   },
+  "historical_rates": {
+    "columns": {
+      "currency": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR(10)"
+      },
+      "date": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": false,
+        "type": "DATE"
+      },
+      "id": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      "per_eur": {
+        "foreign_key": [],
+        "nullable": false,
+        "primary_key": false,
+        "type": "NUMERIC(30, 12)"
+      }
+    },
+    "unique": [
+      "uq_historical_rate(date, currency)"
+    ]
+  },
   "portfolio_snapshots": {
     "columns": {
       "breakdown": {

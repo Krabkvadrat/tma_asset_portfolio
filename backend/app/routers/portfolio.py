@@ -6,7 +6,8 @@ from app.auth import get_current_user
 from app.database import get_db
 from app.models import User
 from app.schemas import PortfolioHistoryPoint, PortfolioResponse
-from app.services.snapshots import compute_snapshot, ensure_today_snapshot, get_history
+from app.services.history import get_history
+from app.services.snapshots import compute_snapshot
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 
@@ -30,8 +31,6 @@ async def get_portfolio(
 
     total_value, breakdown = await compute_snapshot(db, user_id, display_currency)
 
-    await ensure_today_snapshot(db, user_id, display_currency)
-
     return PortfolioResponse(
         total_value=total_value,
         display_currency=display_currency,
@@ -51,8 +50,6 @@ async def get_portfolio_history(
     result = await db.execute(select(User).where(User.user_id == user_id))
     user = result.scalar_one_or_none()
     display_currency = user.display_currency if user else "EUR"
-
-    await ensure_today_snapshot(db, user_id, display_currency)
 
     days = PERIOD_DAYS.get(period, 30)
     type_set = {t.strip() for t in types.split(",") if t.strip()} if types is not None else None
