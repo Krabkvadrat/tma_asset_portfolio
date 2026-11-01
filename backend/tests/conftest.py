@@ -53,6 +53,7 @@ from app import main as app_main  # noqa: E402
 from app import models  # noqa: E402,F401
 from app.database import Base, engine  # noqa: E402
 from app.routers import rates as rates_router  # noqa: E402
+from app.services import history as history_service  # noqa: E402
 
 sync_engine = create_engine(os.environ["DATABASE_URL_SYNC"])
 
@@ -76,6 +77,12 @@ def no_network(monkeypatch):
 
     monkeypatch.setattr(app_main, "refresh_exchange_rates", fake_refresh)
     monkeypatch.setattr(rates_router, "refresh_exchange_rates", fake_refresh)
+
+    async def no_historical_rates(client, day):
+        return None
+
+    monkeypatch.setattr(history_service, "_fetch_day", no_historical_rates)
+    monkeypatch.setattr(history_service, "_failed_until", {})
 
 
 @pytest.fixture(autouse=True)

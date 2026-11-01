@@ -6,10 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import Asset, Transaction, User
+from app.models import Asset, Transaction
 from app.routers.assets import ensure_user
 from app.schemas import TransactionCreate, TransactionResponse
-from app.services.snapshots import take_snapshot
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -87,10 +86,11 @@ async def create_transaction(
     txn = Transaction(
         user_id=user_id,
         asset_id=asset.id if asset else None,
-        type=body.type,
+        # A removal is booked in the asset's own type and currency.
+        type=asset.type if asset else body.type,
         action=body.action,
         amount=body.amount,
-        currency=body.currency,
+        currency=asset.currency if asset else body.currency,
         bank=body.bank,
         note=body.note,
         date=body.date,
@@ -98,12 +98,4 @@ async def create_transaction(
     db.add(txn)
     await db.commit()
     await db.refresh(txn)
-
-    # Update today's portfolio snapshot after the balance change
-    result = await db.execute(select(User).where(User.user_id == user_id))
-    user = result.scalar_one_or_none()
-    if user:
-        await take_snapshot(db, user_id, user.display_currency or "EUR")
-        await db.commit()
-
     return txn

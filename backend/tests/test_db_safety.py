@@ -225,7 +225,9 @@ def test_deleting_asset_keeps_transaction_history(client):
     assert client.delete(f"/api/assets/{asset_id}", headers=auth(1)).status_code == 200
 
     history = client.get("/api/transactions/", headers=auth(1)).json()
-    assert len(history) == 1 and history[0]["amount"] == 50
+    # Deleting logs a removal; the original top-up must still be there.
+    adds = [t for t in history if t["action"] == "add"]
+    assert len(adds) == 1 and adds[0]["amount"] == 50
 
 
 def test_user_cannot_touch_another_users_assets(client):

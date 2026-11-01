@@ -116,7 +116,7 @@ export default function Portfolio() {
           </div>
         ) : (
           <div style={{ color: "#636366", fontSize: 12, marginTop: 8 }}>
-            {totalValue > 0 ? "Performance tracking starts tomorrow" : "Add assets to start tracking"}
+            {totalValue > 0 ? "No history for this period yet" : "Add assets to start tracking"}
           </div>
         )}
       </div>
@@ -141,7 +141,7 @@ export default function Portfolio() {
         ) : (
           <div style={{ height: 120, display: "flex", alignItems: "center", justifyContent: "center", color: "#636366", fontSize: 13 }}>
             {totalValue > 0
-              ? "Chart will appear as daily snapshots accumulate"
+              ? "Chart will appear once your history covers more than a day"
               : "No data yet"}
           </div>
         )}

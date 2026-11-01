@@ -1,12 +1,9 @@
 import logging
-from datetime import date, datetime, timedelta
-from decimal import Decimal
 
-from sqlalchemy import and_, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Asset, ExchangeRate, PortfolioSnapshot, User
+from app.models import Asset, ExchangeRate
 
 logger = logging.getLogger(__name__)
 
@@ -32,14 +29,6 @@ def _resolve_rate(
     if (quote, base) in rates and rates[(quote, base)] != 0:
         return 1.0 / rates[(quote, base)]
     return 1.0
-
-
-def _snapshot_value(snapshot: PortfolioSnapshot, types: set[str] | None) -> float:
-    if types is None:
-        return float(snapshot.total_value)
-    return sum(
-        float(item["value"]) for item in snapshot.breakdown if item.get("type") in types
-    )
 
 
 async def _load_rates(session: AsyncSession) -> dict[tuple[str, str], float]:
@@ -77,131 +66,3 @@ async def compute_snapshot(
         })
 
     return float(total), breakdown
-
-
-async def take_snapshot(
-    session: AsyncSession, user_id: int, display_currency: str, snapshot_date: date | None = None
-) -> PortfolioSnapshot | None:
-    """Compute and upsert a portfolio snapshot for the given date (defaults to today)."""
-    if snapshot_date is None:
-        snapshot_date = datetime.utcnow().date()
-
-    total_value, breakdown = await compute_snapshot(session, user_id, display_currency)
-
-    if total_value == 0:
-        return None
-
-    result = await session.execute(
-        select(PortfolioSnapshot).where(
-            PortfolioSnapshot.user_id == user_id,
-            PortfolioSnapshot.date == snapshot_date,
-            PortfolioSnapshot.display_currency == display_currency,
-        )
-    )
-    existing = result.scalar_one_or_none()
-
-    if existing is not None:
-        existing.total_value = Decimal(str(total_value))
-        existing.breakdown = breakdown
-        snapshot = existing
-    else:
-        snapshot = PortfolioSnapshot(
-            user_id=user_id,
-            date=snapshot_date,
-            display_currency=display_currency,
-            total_value=Decimal(str(total_value)),
-            breakdown=breakdown,
-        )
-        session.add(snapshot)
-
-    try:
-        await session.flush()
-    except IntegrityError:
-        await session.rollback()
-        result = await session.execute(
-            select(PortfolioSnapshot).where(
-                PortfolioSnapshot.user_id == user_id,
-                PortfolioSnapshot.date == snapshot_date,
-                PortfolioSnapshot.display_currency == display_currency,
-            )
-        )
-        snapshot = result.scalar_one_or_none()
-        if snapshot is not None:
-            snapshot.total_value = Decimal(str(total_value))
-            snapshot.breakdown = breakdown
-            await session.flush()
-
-    return snapshot
-
-
-async def ensure_today_snapshot(
-    session: AsyncSession, user_id: int, display_currency: str
-) -> None:
-    """Take today's snapshot if one doesn't already exist."""
-    today = datetime.utcnow().date()
-    result = await session.execute(
-        select(PortfolioSnapshot.id).where(
-            PortfolioSnapshot.user_id == user_id,
-            PortfolioSnapshot.date == today,
-            PortfolioSnapshot.display_currency == display_currency,
-        )
-    )
-    if result.scalar_one_or_none() is None:
-        await take_snapshot(session, user_id, display_currency, today)
-        await session.commit()
-
-
-async def get_history(
-    session: AsyncSession, user_id: int, display_currency: str, days: int,
-    types: set[str] | None = None,
-) -> list[dict]:
-    """Return snapshots for the last N days.
-
-    With types, each point sums only those categories of the snapshot's
-    breakdown, and snapshots without a breakdown are skipped.
-
-    If no snapshots exist in the requested currency, falls back to
-    snapshots in any other currency and converts them using current rates.
-    """
-    start_date = datetime.utcnow().date() - timedelta(days=days - 1)
-    result = await session.execute(
-        select(PortfolioSnapshot)
-        .where(and_(
-            PortfolioSnapshot.user_id == user_id,
-            PortfolioSnapshot.display_currency == display_currency,
-            PortfolioSnapshot.date >= start_date,
-        ))
-        .order_by(PortfolioSnapshot.date.asc())
-    )
-    snapshots = [
-        s for s in result.scalars().all() if types is None or s.breakdown is not None
-    ]
-
-    if snapshots:
-        return [
-            {"date": s.date.isoformat(), "value": _snapshot_value(s, types)}
-            for s in snapshots
-        ]
-
-    result = await session.execute(
-        select(PortfolioSnapshot)
-        .where(and_(
-            PortfolioSnapshot.user_id == user_id,
-            PortfolioSnapshot.date >= start_date,
-        ))
-        .order_by(PortfolioSnapshot.date.asc())
-    )
-    fallback = [
-        s for s in result.scalars().all() if types is None or s.breakdown is not None
-    ]
-    if not fallback:
-        return []
-
-    rates = await _load_rates(session)
-    source_currency = fallback[0].display_currency
-    rate = _resolve_rate(rates, source_currency, display_currency)
-
-    return [
-        {"date": s.date.isoformat(), "value": _snapshot_value(s, types) * rate}
-        for s in fallback
-    ]

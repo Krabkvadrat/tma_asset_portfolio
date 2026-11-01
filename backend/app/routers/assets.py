@@ -9,7 +9,6 @@ from app.auth import get_current_user
 from app.database import get_db
 from app.models import Asset, PortfolioSnapshot, Transaction, User
 from app.schemas import AssetCreate, AssetResponse, AssetUpdate
-from app.services.snapshots import take_snapshot
 
 router = APIRouter(prefix="/api/assets", tags=["assets"])
 
@@ -60,12 +59,25 @@ async def update_asset(
         raise HTTPException(status_code=404, detail="Asset not found")
 
     old_amount = float(asset.amount)
+    old_currency = asset.currency
     updates = body.model_dump(exclude_unset=True)
     for field, value in updates.items():
         setattr(asset, field, value)
     new_amount = float(asset.amount)
 
-    if old_amount != new_amount:
+    if old_currency != asset.currency:
+        # Log the balance moving between currencies, so history values it right.
+        today = datetime.utcnow().date()
+        for action, amount, currency in (
+            ("remove", old_amount, old_currency), ("add", new_amount, asset.currency),
+        ):
+            if amount != 0:
+                db.add(Transaction(
+                    user_id=user_id, asset_id=asset.id, type=asset.type, action=action,
+                    amount=Decimal(str(amount)), currency=currency, bank=asset.bank,
+                    note="Currency changed", date=today,
+                ))
+    elif old_amount != new_amount:
         diff = new_amount - old_amount
         txn = Transaction(
             user_id=user_id,
@@ -82,13 +94,6 @@ async def update_asset(
 
     await db.commit()
     await db.refresh(asset)
-
-    result = await db.execute(select(User).where(User.user_id == user_id))
-    user = result.scalar_one_or_none()
-    if user:
-        await take_snapshot(db, user_id, user.display_currency or "EUR")
-        await db.commit()
-
     return asset
 
 
@@ -102,6 +107,18 @@ async def delete_asset(
     asset = result.scalar_one_or_none()
     if asset is None or asset.user_id != user_id:
         raise HTTPException(status_code=404, detail="Asset not found")
+    if asset.amount != 0:
+        # Log the balance leaving, so the portfolio history drops on this day.
+        db.add(Transaction(
+            user_id=user_id,
+            type=asset.type,
+            action="remove",
+            amount=asset.amount,
+            currency=asset.currency,
+            bank=asset.bank,
+            note="Asset deleted",
+            date=datetime.utcnow().date(),
+        ))
     await db.delete(asset)
     await db.commit()
 
@@ -113,11 +130,5 @@ async def delete_asset(
     if asset_count == 0:
         await db.execute(delete(PortfolioSnapshot).where(PortfolioSnapshot.user_id == user_id))
         await db.commit()
-    else:
-        result = await db.execute(select(User).where(User.user_id == user_id))
-        user = result.scalar_one_or_none()
-        if user:
-            await take_snapshot(db, user_id, user.display_currency or "EUR")
-            await db.commit()
 
     return {"ok": True}
