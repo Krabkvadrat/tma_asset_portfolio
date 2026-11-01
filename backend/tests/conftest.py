@@ -82,6 +82,7 @@ def no_network(monkeypatch):
         return None
 
     monkeypatch.setattr(history_service, "_fetch_day", no_historical_rates)
+    monkeypatch.setattr(history_service, "_failed_until", {})
 
 
 @pytest.fixture(autouse=True)

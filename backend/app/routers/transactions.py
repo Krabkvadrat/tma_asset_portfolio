@@ -86,10 +86,11 @@ async def create_transaction(
     txn = Transaction(
         user_id=user_id,
         asset_id=asset.id if asset else None,
-        type=body.type,
+        # A removal is booked in the asset's own type and currency.
+        type=asset.type if asset else body.type,
         action=body.action,
         amount=body.amount,
-        currency=body.currency,
+        currency=asset.currency if asset else body.currency,
         bank=body.bank,
         note=body.note,
         date=body.date,

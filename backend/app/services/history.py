@@ -8,6 +8,7 @@ last point matches the total on screen.
 import asyncio
 import logging
 import math
+import time
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -28,6 +29,13 @@ MAX_POINTS = 92
 # The daily rate archive starts here; earlier days use the nearest known rates.
 RATES_ARCHIVE_START = date(2024, 3, 2)
 FETCH_CONCURRENCY = 8
+FETCH_TIMEOUT = 5.0
+# A chart request waits at most this long for missing rates; the rest load next time.
+FETCH_DEADLINE = 8.0
+# Days that failed to load are not retried for this many seconds.
+FAILED_RETRY_AFTER = 3600
+
+_failed_until: dict[date, float] = {}
 
 
 def _tracked_currencies() -> set[str]:
@@ -43,9 +51,39 @@ async def _fetch_day(client: httpx.AsyncClient, day: date) -> dict[str, float] |
             resp.raise_for_status()
             rates = resp.json()["eur"]
             return {code.upper(): float(v) for code, v in rates.items() if isinstance(v, (int, float)) and v > 0}
-        except (httpx.HTTPError, KeyError, ValueError, TypeError) as exc:
+        except (httpx.HTTPError, KeyError, ValueError, TypeError, AttributeError) as exc:
             logger.info("Historical rates for %s unavailable at %s: %s", day, url, exc)
     return None
+
+
+async def _fetch_missing(days: list[date]) -> dict[date, dict[str, float]]:
+    """Fetch rates for the given days, giving up on whatever is not back in time."""
+    now = time.monotonic()
+    days = [d for d in days if _failed_until.get(d, 0) <= now]
+    if not days:
+        return {}
+
+    semaphore = asyncio.Semaphore(FETCH_CONCURRENCY)
+    found: dict[date, dict[str, float]] = {}
+
+    async with httpx.AsyncClient(timeout=FETCH_TIMEOUT) as client:
+        async def fetch(day: date) -> None:
+            async with semaphore:
+                rates = await _fetch_day(client, day)
+            if rates:
+                found[day] = rates
+            else:
+                _failed_until[day] = time.monotonic() + FAILED_RETRY_AFTER
+
+        tasks = [asyncio.create_task(fetch(d)) for d in days]
+        _, pending = await asyncio.wait(tasks, timeout=FETCH_DEADLINE)
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.wait(pending)
+            logger.warning("Historical rates: %d days not fetched in time", len(pending))
+
+    return found
 
 
 async def _load_historical_rates(
@@ -53,55 +91,53 @@ async def _load_historical_rates(
 ) -> dict[date, dict[str, float]]:
     """Cached per-EUR rates for the given days, fetching the missing ones."""
     result = await session.execute(
-        select(HistoricalRate).where(HistoricalRate.date.in_(days))
+        select(HistoricalRate.date, HistoricalRate.currency, HistoricalRate.per_eur)
+        .where(HistoricalRate.date.in_(days))
     )
     cached: dict[date, dict[str, float]] = defaultdict(dict)
-    for row in result.scalars().all():
-        cached[row.date][row.currency] = float(row.per_eur)
+    for day, currency, per_eur in result.all():
+        cached[day][currency] = float(per_eur)
 
     missing = [d for d in days if d not in cached and d >= RATES_ARCHIVE_START]
     if not missing:
         return cached
 
+    # Don't hold a database transaction open while waiting on the network.
+    await session.commit()
+    fetched = await _fetch_missing(missing)
+    if not fetched:
+        return cached
+
     tracked = _tracked_currencies()
-    semaphore = asyncio.Semaphore(FETCH_CONCURRENCY)
-
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        async def fetch(day: date):
-            async with semaphore:
-                return day, await _fetch_day(client, day)
-
-        fetched = await asyncio.gather(*(fetch(d) for d in missing))
-
-    added = False
-    for day, rates in fetched:
-        if not rates:
-            continue
+    for day, rates in fetched.items():
         rates = {c: r for c, r in rates.items() if c in tracked}
         rates["EUR"] = 1.0
         cached[day] = rates
         for currency, per_eur in rates.items():
             session.add(HistoricalRate(date=day, currency=currency, per_eur=Decimal(str(per_eur))))
-        added = True
-
-    if added:
-        try:
-            await session.commit()
-        except IntegrityError:
-            # Another request cached the same day first; its rows are equivalent.
-            await session.rollback()
+    try:
+        await session.commit()
+    except IntegrityError:
+        # Another request cached the same day first; its rows are equivalent.
+        await session.rollback()
 
     return cached
 
 
 def _sample_days(start: date, today: date, days: int) -> list[date]:
+    """Every step-th calendar day in the window, plus today.
+
+    Anchored to the calendar rather than to today, so the same days are
+    picked (and their cached rates reused) from one day to the next.
+    """
     step = max(1, math.ceil(days / MAX_POINTS))
-    result = []
-    day = today
-    while day >= start:
-        result.append(day)
-        day -= timedelta(days=step)
-    return sorted(result)
+    result = [
+        start + timedelta(days=i) for i in range(days)
+        if (start + timedelta(days=i)).toordinal() % step == 0
+    ]
+    if not result or result[-1] != today:
+        result.append(today)
+    return result
 
 
 async def get_history(
@@ -116,20 +152,23 @@ async def get_history(
     today = datetime.utcnow().date()
     start = today - timedelta(days=days - 1)
 
-    query = select(Transaction).where(Transaction.user_id == user_id)
+    # Plain rows, not ORM objects: the rate cache commits, which would expire them.
+    query = select(
+        Transaction.date, Transaction.action, Transaction.amount, Transaction.currency
+    ).where(Transaction.user_id == user_id).order_by(Transaction.date.asc())
+    asset_query = select(Asset.currency, Asset.amount).where(Asset.user_id == user_id)
     if types is not None:
         query = query.where(Transaction.type.in_(types))
-    txns = (await session.execute(query.order_by(Transaction.date.asc()))).scalars().all()
-
-    asset_query = select(Asset).where(Asset.user_id == user_id)
-    if types is not None:
         asset_query = asset_query.where(Asset.type.in_(types))
-    assets = (await session.execute(asset_query)).scalars().all()
+    txns = [(d, action, float(amount), currency)
+            for d, action, amount, currency in (await session.execute(query)).all()]
+    assets = [(currency, float(amount))
+              for currency, amount in (await session.execute(asset_query)).all()]
 
     if not txns and not assets:
         return []
 
-    first_day = min(txns[0].date, today) if txns else today
+    first_day = min(txns[0][0], today) if txns else today
     sample = [d for d in _sample_days(start, today, days) if d >= first_day]
 
     current_rates = await _load_rates(session)
@@ -156,13 +195,13 @@ async def get_history(
     for day in sample:
         if day == today:
             current = defaultdict(float)
-            for asset in assets:
-                current[asset.currency] += float(asset.amount)
+            for currency, amount in assets:
+                current[currency] += amount
             points.append({"date": day.isoformat(), "value": value_on(current, None)})
             continue
-        while i < len(txns) and txns[i].date <= day:
-            sign = 1 if txns[i].action == "add" else -1
-            balances[txns[i].currency] += sign * float(txns[i].amount)
+        while i < len(txns) and txns[i][0] <= day:
+            _, action, amount, currency = txns[i]
+            balances[currency] += amount if action == "add" else -amount
             i += 1
         if day in historical:
             last_rates = historical[day]

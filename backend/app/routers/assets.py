@@ -59,12 +59,25 @@ async def update_asset(
         raise HTTPException(status_code=404, detail="Asset not found")
 
     old_amount = float(asset.amount)
+    old_currency = asset.currency
     updates = body.model_dump(exclude_unset=True)
     for field, value in updates.items():
         setattr(asset, field, value)
     new_amount = float(asset.amount)
 
-    if old_amount != new_amount:
+    if old_currency != asset.currency:
+        # Log the balance moving between currencies, so history values it right.
+        today = datetime.utcnow().date()
+        for action, amount, currency in (
+            ("remove", old_amount, old_currency), ("add", new_amount, asset.currency),
+        ):
+            if amount != 0:
+                db.add(Transaction(
+                    user_id=user_id, asset_id=asset.id, type=asset.type, action=action,
+                    amount=Decimal(str(amount)), currency=currency, bank=asset.bank,
+                    note="Currency changed", date=today,
+                ))
+    elif old_amount != new_amount:
         diff = new_amount - old_amount
         txn = Transaction(
             user_id=user_id,
