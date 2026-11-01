@@ -147,7 +147,7 @@ def test_live_and_new_style_deletions_are_left_alone(client):
 
 
 def test_dry_run_writes_nothing_and_apply_runs_once(client, monkeypatch, capsys):
-    monkeypatch.setenv("DATABASE_URL_SYNC", str(sync_engine.url))
+    monkeypatch.setenv("DATABASE_URL_SYNC", sync_engine.url.render_as_string(hide_password=False))
     txn(1, "cash", "EUR", "add", 100, "2026-03-01")
     txn(2, "cash", "EUR", "add", 40, "2026-03-01")
     before = all_txns()
